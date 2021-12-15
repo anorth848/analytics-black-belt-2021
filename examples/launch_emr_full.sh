@@ -1,0 +1,14 @@
+aws emr create-cluster \
+--applications Name=Hadoop Name=Hive Name=Spark \
+--ec2-attributes '{"KeyName":"adam","AdditionalSlaveSecurityGroups":["sg-0b4899c7082b4dacb"],"InstanceProfile":"EMR_EC2_DefaultRole","SubnetId":"subnet-0a452a55f91255add","EmrManagedSlaveSecurityGroup":"sg-0b4be1e62e20c802a","EmrManagedMasterSecurityGroup":"sg-0124166470738e911","AdditionalMasterSecurityGroups":["sg-0b4899c7082b4dacb"]}' \
+--release-label emr-5.33.1 \
+--log-uri 's3n://aws-logs-831275422924-us-east-1/elasticmapreduce/' \
+--instance-groups '[{"InstanceCount":1,"EbsConfiguration":{"EbsBlockDeviceConfigs":[{"VolumeSpecification":{"SizeInGB":32,"VolumeType":"gp2"},"VolumesPerInstance":2}]},"InstanceGroupType":"MASTER","InstanceType":"m5.xlarge","Name":"Master - 1"},{"InstanceCount":1,"EbsConfiguration":{"EbsBlockDeviceConfigs":[{"VolumeSpecification":{"SizeInGB":32,"VolumeType":"gp2"},"VolumesPerInstance":1}]},"InstanceGroupType":"CORE","InstanceType":"m4.large","Name":"Core - 2"}]' \
+--configurations file://configurations.json \
+--auto-scaling-role EMR_AutoScaling_DefaultRole \
+--bootstrap-actions '[{"Path":"s3://adamn-831275422924/analytics-black-belt-2021/emr/bootstrap/bootstrap.sh","Args":["adamn-831275422924"],"Name":"Custom action"}]' \
+--ebs-root-volume-size 10 \
+--service-role EMR_DefaultRole \
+--name 'test-cdc' \
+--scale-down-behavior TERMINATE_AT_TASK_COMPLETION \
+--region us-east-1
