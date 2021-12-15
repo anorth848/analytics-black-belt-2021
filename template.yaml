@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  #TODO
+
+Parameters:
+  DbName:
+    Type: String
+    Default: hammerdb
+    AllowedPattern: "[a-z_]+"
+    Description: Glue Data Catalog Database Name. Only lower-case and _ allowed.
+
+Resources:
+  DataLakeStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/datalake.yaml
+      Parameters:
+        DbName: !Ref DbName

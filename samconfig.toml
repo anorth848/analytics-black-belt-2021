@@ -1,0 +1,13 @@
+ version=0.1
+ [default.global.parameters]
+ stack_name = "common-stack"
+
+ [default.deploy.parameters]
+ stack_name = "da-black-belt-2021"
+ s3_bucket = "adamn-831275422924"
+ s3_prefix = "analytics-black-belt-2021/sam_deployments/"
+ region = "us-east-1"
+ confirm_changeset = true
+ capabilities = ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM", "CAPABILITY_AUTO_EXPAND"]
+ tags = "project=\"2021-black-belt\" stage=\"dev\""
+ parameter_overrides = "DbName=hammerdb"

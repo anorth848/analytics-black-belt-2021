@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  #TODO
+
+Parameters:
+  DbName:
+    Type: String
+    Default: hammerdb
+    AllowedPattern: "[a-z_]+"
+    Description: Glue Data Catalog Database Name. Only lower-case and _ allowed.
+
+Resources:
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Description: Data Lake database
+        Name: !Ref DbName
+
+  LakeBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      LifecycleConfiguration:
+        Rules:
+          -
+            Id: Expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 2
+            NoncurrentVersionExpirationInDays: 7
+            ExpiredObjectDeleteMarker: TRUE
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      VersioningConfiguration:
+        Status: Enabled
+
+  CatalogParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Data lake database name
+      Name: '/abb/lake/catalog'
+      Type: String
+      Value: !Ref GlueDatabase
+
+  BucketParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Data Lake s3 bucket
+      Name: '/abb/lake/bucket'
+      Type: String
+      Value: !Ref LakeBucket
+
+  PrefixParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Data Lake s3 prefix
+      Name: '/abb/lake/prefix'
+      Type: String
+      Value: !Sub '${GlueDatabase}'
+
+
