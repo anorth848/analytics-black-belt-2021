@@ -10,6 +10,10 @@ Parameters:
     AllowedPattern: "[a-z_]+"
     Description: Glue Data Catalog Database Name. Only lower-case and _ allowed.
 
+  ParentStack:
+    Type: String
+    Description: Parent stack this template was launched from, used for naming SSM parameters
+
 Resources:
   GlueDatabase:
     Type: AWS::Glue::Database
@@ -51,7 +55,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Description: Data lake database name
-      Name: '/abb/lake/catalog'
+      Name: !Sub '/${ParentStack}/lake/catalog'
       Type: String
       Value: !Ref GlueDatabase
 
@@ -59,7 +63,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Description: Data Lake s3 bucket
-      Name: '/abb/lake/bucket'
+      Name: !Sub '/${ParentStack}/lake/bucket'
       Type: String
       Value: !Ref LakeBucket
 
@@ -67,7 +71,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Description: Data Lake s3 prefix
-      Name: '/abb/lake/prefix'
+      Name: !Sub '/${ParentStack}/lake/prefix'
       Type: String
       Value: !Sub '${GlueDatabase}'
 

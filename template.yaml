@@ -17,3 +17,19 @@ Resources:
       Location: templates/datalake.yaml
       Parameters:
         DbName: !Ref DbName
+        ParentStack: !Ref AWS::StackName
+
+  DynamoDbStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/dynamodb.yaml
+      Parameters:
+        ParentStack: !Ref AWS::StackName
+
+  SecretsStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/secrets.yaml
+      Parameters:
+        SecretName: !Ref DbName
+        ParentStack: !Ref AWS::StackName

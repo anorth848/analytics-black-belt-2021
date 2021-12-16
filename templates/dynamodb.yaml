@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  #TODO
+
+Parameters:
+  ParentStack:
+    Type: String
+    Description: Parent stack this template was launched from, used for naming SSM parameters
+
+Resources:
+  RdbmsConfigTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: database
+          AttributeType: S
+        - AttributeName: table
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: database
+          KeyType: HASH
+        - AttributeName: table
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: TRUE
+
+  RdbmsConfigParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: DynamoDB table for RDBMS table configs
+      Name: !Sub '/${ParentStack}/dynamodb/rdbms'
+      Type: String
+      Value: !Ref RdbmsConfigTable
