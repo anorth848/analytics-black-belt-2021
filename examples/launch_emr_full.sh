@@ -7,6 +7,7 @@ aws emr create-cluster \
 --configurations file://configurations.json \
 --auto-scaling-role EMR_AutoScaling_DefaultRole \
 --bootstrap-actions '[{"Path":"s3://adamn-831275422924/analytics-black-belt-2021/emr/bootstrap/bootstrap.sh","Args":["adamn-831275422924"],"Name":"Custom action"}]' \
+--steps '[{"Args":["spark-submit","s3://adamn-831275422924/analytics-black-belt-2021/emr/scripts/full_load.py"],"Type":"CUSTOM_JAR","ActionOnFailure":"TERMINATE_CLUSTER","Jar":"command-runner.jar","Properties":"","Name":"FullLoad"}]' \
 --ebs-root-volume-size 10 \
 --service-role EMR_DefaultRole \
 --name 'test-cdc' \

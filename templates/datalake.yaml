@@ -15,14 +15,6 @@ Parameters:
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
 Resources:
-  GlueDatabase:
-    Type: AWS::Glue::Database
-    Properties:
-      CatalogId: !Ref AWS::AccountId
-      DatabaseInput:
-        Description: Data Lake database
-        Name: !Ref DbName
-
   LakeBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -50,6 +42,63 @@ Resources:
           - ObjectOwnership: BucketOwnerPreferred
       VersioningConfiguration:
         Status: Enabled
+
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    DependsOn: LakeBucket
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Description: Data Lake database
+        Name: !Ref DbName
+        LocationUri: !Sub 's3://${LakeBucket}/{DbName}/'
+
+  LakeLocationResource:
+    Type: AWS::LakeFormation::Resource
+    Properties:
+      ResourceArn: !Join ["/", [ !GetAtt LakeBucket.Arn, !Ref GlueDatabase ]]
+      UseServiceLinkedRole: FALSE
+      RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+
+  EmrLakeDbPermissions:
+    Type: AWS::LakeFormation::Permissions
+    DependsOn: GlueDatabase
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+      Permissions:
+        - ALL
+      Resource:
+        DatabaseResource:
+          CatalogId: !Ref AWS::AccountId
+          Name: !Ref GlueDatabase
+
+  EmrLakeLocationPermissions:
+    Type: AWS::LakeFormation::Permissions
+    DependsOn: [ GlueDatabase, LakeLocationResource ]
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+      Permissions:
+        - DATA_LOCATION_ACCESS
+      Resource:
+        DataLocationResource:
+          CatalogId: !Ref AWS::AccountId
+          S3Resource: !Join ["/", [ !GetAtt LakeBucket.Arn, !Ref GlueDatabase ]]
+
+  EmrLakeTablePermissions:
+    Type: AWS::LakeFormation::Permissions
+    DependsOn: GlueDatabase
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+      Permissions:
+        - ALL
+      Resource:
+        TableResource:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabase
+          TableWildcard: {}
 
   CatalogParameter:
     Type: AWS::SSM::Parameter
