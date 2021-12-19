@@ -51,7 +51,7 @@ Resources:
       DatabaseInput:
         Description: Data Lake database
         Name: !Ref DbName
-        LocationUri: !Sub 's3://${LakeBucket}/{DbName}/'
+        LocationUri: !Sub 's3://${LakeBucket}/${DbName}/'
 
   LakeLocationResource:
     Type: AWS::LakeFormation::Resource
@@ -119,9 +119,7 @@ Resources:
   PrefixParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Description: Data Lake s3 prefix
-      Name: !Sub '/${ParentStack}/lake/prefix'
+      Description: Data Lake s3 prefix uri
+      Name: !Sub '/${ParentStack}/lake/prefix_uri'
       Type: String
-      Value: !Sub '${GlueDatabase}'
-
-
+      Value: !Join ['', ['s3://', !Ref LakeBucket, '/', !Ref GlueDatabase]]

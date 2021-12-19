@@ -33,3 +33,10 @@ Resources:
       Parameters:
         SecretName: !Ref DbName
         ParentStack: !Ref AWS::StackName
+
+  StepfunctionsStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/stepfunctions.yaml
+      Parameters:
+        ParentStack: !Ref AWS::StackName

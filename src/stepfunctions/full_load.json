@@ -1,0 +1,141 @@
+{
+    "Comment": "Launch the EMR cluster and perform a full load",
+    "StartAt": "LaunchEMR",
+    "States": {
+        "LaunchEMR": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:createCluster.sync",
+            "Parameters": {
+                "Name": "FullLoad-customer",
+                "VisibleToAllUsers": true,
+                "ReleaseLabel": "emr-5.33.1",
+                "EbsRootVolumeSize": 10,
+                "Tags": [
+                    {
+                        "Key": "for-use-with-amazon-emr-managed-policies",
+                        "Value": "true"
+                    }
+                ],
+                "Applications": [
+                    { "Name": "Hive" },
+                    { "Name": "Hadoop" },
+                    { "Name": "Spark" }
+                ],
+                "ServiceRole": "EMR_DefaultRole",
+                "JobFlowRole": "EMR_EC2_DefaultRole",
+                "AutoScalingRole": "EMR_AutoScaling_DefaultRole",
+                "LogUri": "s3n://aws-logs-831275422924-us-east-1/elasticmapreduce/",
+                "BootstrapActions": [
+                    {
+                        "Name": "SyncLibs",
+                        "ScriptBootstrapAction": {
+                            "Args": [ "adamn-831275422924" ],
+                            "Path": "s3://adamn-831275422924/analytics-black-belt-2021/emr/bootstrap/bootstrap.sh"
+                        }
+                    }
+                ],
+                "Instances": {
+                    "AdditionalSlaveSecurityGroups":["sg-0b4899c7082b4dacb"],
+                    "Ec2SubnetId":"subnet-0a452a55f91255add",
+                    "EmrManagedSlaveSecurityGroup":"sg-0b4be1e62e20c802a",
+                    "EmrManagedMasterSecurityGroup":"sg-0124166470738e911",
+                    "AdditionalMasterSecurityGroups":["sg-0b4899c7082b4dacb"],
+                    "KeepJobFlowAliveWhenNoSteps": true,
+                    "InstanceGroups": [
+                        {
+                            "InstanceCount":1,
+                            "EbsConfiguration":{
+                                "EbsBlockDeviceConfigs":[
+                                    {
+                                        "VolumeSpecification":{
+                                            "SizeInGB":32,
+                                            "VolumeType":"gp2"
+                                        },
+                                        "VolumesPerInstance":2
+                                    }
+                                ]
+                            },
+                            "InstanceRole":"MASTER",
+                            "InstanceType":"m5.xlarge",
+                            "Name":"Master - 1"
+                        },
+                        {
+                            "InstanceCount":1,
+                            "EbsConfiguration":{
+                                "EbsBlockDeviceConfigs":[
+                                    {
+                                        "VolumeSpecification":{
+                                            "SizeInGB":32,
+                                            "VolumeType":"gp2"
+                                        },
+                                        "VolumesPerInstance":1
+                                    }
+                                ]
+                            },
+                            "InstanceRole":"CORE",
+                            "InstanceType":"m4.large",
+                            "Name":"Core - 2"
+                        }
+                    ]
+                },
+                "Configurations": [
+                    {
+                        "Classification":"hive-site",
+                        "Properties": {
+                            "hive.metastore.client.factory.class":"com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+                        }
+                    },
+                    {
+                        "Classification":"spark-hive-site",
+                        "Properties":{
+                            "hive.metastore.client.factory.class":"com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+                        }
+                    },
+                    {
+                        "Classification":"spark-defaults",
+                        "Properties":{
+                            "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
+                            "spark.sql.hive.convertMetastore": "false",
+                            "spark.jars": "/usr/lib/hudi/hudi-spark-bundle.jar,/usr/lib/spark/external/lib/spark-avro.jar"
+                        }
+                    }
+                ]
+            },
+            "ResultPath": "$.cluster",
+            "Next": "FullLoadStep"
+        },
+        "FullLoadStep": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.cluster.ClusterId",
+                "Step": {
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Args": [
+                            "spark-submit","s3://adamn-831275422924/analytics-black-belt-2021/emr/scripts/full_load.py"
+                        ],
+                        "Jar": "command-runner.jar"
+                    },
+                    "Name": "FullLoad"
+                }
+            },
+            "Catch" : [
+                {
+                    "ErrorEquals": [ "States.ALL" ],
+                    "Next": "TerminateCluster"
+                }
+            ],
+            "ResultPath": "$.cluster.step",
+            "Next": "TerminateCluster"
+        },
+        "TerminateCluster": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:terminateCluster",
+            "Parameters": {
+                "ClusterId.$": "$.cluster.ClusterId"
+            },
+            "End": true
+        }
+    }
+}

@@ -8,10 +8,10 @@ def main():
         .getOrCreate()
 
     df = spark.read.format('jdbc') \
-        .option("url", "jdbc:postgresql://z.amazonaws.com:5432/z") \
+        .option("url", "jdbc:postgresql://pg-hammerdb.cob4psnojwdw.us-east-1.rds.amazonaws.com:5432/hammerdb") \
         .option('dbtable', 'customer') \
-        .option('user', 'z') \
-        .option('password', 'z') \
+        .option('user', 'postgres') \
+        .option('password', 'WQ6psvDWVLA8myZ') \
         .option("driver", "org.postgresql.Driver") \
         .load()
 
@@ -32,7 +32,7 @@ def main():
         .format('org.apache.hudi') \
         .options(**hudi_options) \
         .mode('overwrite') \
-        .save('s3://adamn-831275422924/analytics-black-belt-2021/data/hammerdb/customer/')
+        .save('s3://da-black-belt-2021-datalakestack-bt3qd-lakebucket-11ejurq2mbulm/hammerdb/customer/')
 
 
 if __name__ == "__main__":
