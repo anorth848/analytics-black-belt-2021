@@ -5,6 +5,7 @@
         "LaunchEMR": {
             "Type": "Task",
             "Resource": "arn:aws:states:::elasticmapreduce:createCluster.sync",
+            "InputPath": "$.lambda",
             "Parameters": {
                 "Name": "FullLoad-customer",
                 "VisibleToAllUsers": true,

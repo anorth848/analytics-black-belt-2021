@@ -11,17 +11,18 @@ Parameters:
 Resources:
   RdbmsConfigTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
     Properties:
       AttributeDefinitions:
-        - AttributeName: database
+        - AttributeName: identifier
           AttributeType: S
-        - AttributeName: table
+        - AttributeName: config
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
-        - AttributeName: database
+        - AttributeName: identifier
           KeyType: HASH
-        - AttributeName: table
+        - AttributeName: config
           KeyType: RANGE
       SSESpecification:
         SSEEnabled: TRUE
