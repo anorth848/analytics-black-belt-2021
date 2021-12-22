@@ -20,17 +20,10 @@ logging.basicConfig(
 
 
 def write_configs(execution_id, data):
-    # s3 = boto3.client('s3')
-    # response = s3.upload_fileobj(
-    #     data.encode('utf-8'),
-    #     runtime_bucket,
-    #     f'runtime/stepfunctions/{sfn_arn.split(":")[-1]}/{execution_id}/full_load_configs.json'
-    #
-    # )
-    object_name = f'runtime/stepfunctions/{sfn_arn.split(":")[-1]}/{execution_id}/full_load_configs.json'
+    object_prefix = f'runtime/stepfunctions/{sfn_arn.split(":")[-1]}/{execution_id}/'
     s3 = boto3.resource('s3')
-    s3.Object(runtime_bucket, object_name).put(Body=data.encode('utf-8'))
-    s3_uri = f's3://{runtime_bucket}/{object_name}'
+    s3.Object(runtime_bucket, os.path.join(object_prefix, "full_load_configs.json")).put(Body=data.encode('utf-8'))
+    s3_uri = os.path.join('s3://', runtime_bucket, object_prefix)
 
     return s3_uri
 
@@ -47,7 +40,9 @@ def munge_configs(input_list):
             configs['TableConfigs'][config['config'].split('::')[-1]] = config
         else:
             raise RuntimeError('Unsupported config type')
-    return configs
+    table_list = [x for x in configs['TableConfigs'].keys()]
+
+    return configs, table_list
 
 
 def get_configs(identifier):
@@ -72,14 +67,13 @@ def get_configs(identifier):
     return configs
 
 
-def launch_sfn(identifier, execution_id, config_s3_uri):
+def launch_sfn(identifier, execution_id, config_s3_uri, table_list):
     client = boto3.client('stepfunctions')
     sfn_input = {
-        'input': {
-            'lambda': {
-                'identifier': identifier,
-                'config_s3_uri': config_s3_uri
-            }
+        'lambda': {
+            'identifier': identifier,
+            'runtime_configs': config_s3_uri,  # && sudo chmod -R 755 $_
+            'table_list': table_list
         }
     }
     response = client.start_execution(
@@ -93,10 +87,11 @@ def launch_sfn(identifier, execution_id, config_s3_uri):
 def handler(event, context=None):
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     identifier = event['Identifier']
-    config_dict = get_configs(identifier)
     execution_id = f'{identifier}-{timestamp}'
+    config_dict, table_list = get_configs(identifier)
     config_s3_uri = write_configs(execution_id, json.dumps(config_dict, indent=4))
-    response = launch_sfn(identifier, execution_id, config_s3_uri)
+    logging.info(f'Runtime config written to: {config_s3_uri}.')
+    response = launch_sfn(identifier, execution_id, config_s3_uri, table_list)
 
     return {
         "statusCode": response['ResponseMetadata']['HTTPStatusCode'],
@@ -108,8 +103,8 @@ def handler(event, context=None):
         })
     }
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     test_event={
         'Identifier': 'hammerdb'
     }

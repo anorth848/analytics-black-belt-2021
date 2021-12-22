@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
-BUCKET=$1
+set -e
 
-sudo aws s3 cp s3://${BUCKET}/analytics-black-belt-2021/emr/jars/postgresql-42.3.1.jar /usr/lib/spark/jars/
+JAR_BUCKET=$1
+RUNTIME_CONFIGS=$2
+
+sudo aws s3 sync s3://${JAR_BUCKET}/artifacts/emr/jars/ /usr/lib/spark/jars/
+
+is_master=$(cat /mnt/var/lib/info/instance.json | jq .isMaster)
+if [ $is_master = true ]
+then
+    sudo aws s3 sync ${RUNTIME_CONFIGS} /mnt/var/lib/instance-controller/public/runtime_configs/ && sudo chmod -R 755 $_
+fi

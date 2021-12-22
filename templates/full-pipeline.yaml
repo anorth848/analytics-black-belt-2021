@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  #TODO
+
+Parameters:
+  ParentStack:
+    Type: String
+    Description: Parent stack this template was launched from, used for naming SSM parameters
+
+Resources:
+  FullLoadStepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "states.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole"]
+          }
+        ]
+      }
+      Description: Role for full load state machine
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEMRFullAccessPolicy_v2
+      MaxSessionDuration: 43200
+
+  FullLoadStepFunction:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: ../src/stepfunctions/full_load.json
+#      #DefinitionSubstitutions:
+#        # /da-black-belt-2021/lake/prefix
+#        LakeUri: !Join ['',
+#          [
+#            '{{resolve:ssm:/',
+#            !Ref ParentStack,
+#            '/lake/prefix',
+#            '}}',
+#          ]
+#        ]
+      Role: !GetAtt FullLoadStepFunctionRole.Arn
+      Type: STANDARD
+
+  FullLoadLambdaLaunchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        "Version": "2012-10-17"
+        "Statement":
+          - Effect: Allow
+            Principal:
+              Service: [ "lambda.amazonaws.com" ]
+            Action: [ "sts:AssumeRole" ]
+      Description: Role for full load state machine
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LaunchPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: DynamoDB
+                Effect: Allow
+                Action:
+                  - dynamodb:Describe*
+                  - dynamodb:Query
+                  - dynamodb:*GetItem*
+                Resource: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/config_table/arn', '}}' ] ]
+              - Sid: S3
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:PutObject
+                Resource:
+                  - !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/bucket/arn', '}}' ] ]
+                  - !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/bucket/arn', '}}/*' ] ]
+              - Sid: StepFunction
+                Effect: Allow
+                Action:
+                  - states:*Execution*
+                  - states:Describe*
+                Resource:
+                  - !Ref FullLoadStepFunction
+                  - !Join [':', [
+                      !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution',
+                      !GetAtt FullLoadStepFunction.Name,
+                      '*'
+                    ]]
+
+  FullLoadLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src/lambdas/launch_full_load/
+      Description: Lambda Function for launching the Full Load step function
+      Environment:
+        Variables:
+          STEPFUNCTION_ARN: !Ref FullLoadStepFunction
+          CONFIG_TABLE: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/config_table/name', '}}' ] ]
+          RUNTIME_BUCKET: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/bucket/name', '}}' ] ]
+          LOG_LEVEL: 'INFO'
+      Handler: handler.handler
+      Role: !GetAtt FullLoadLambdaLaunchRole.Arn
+      Runtime: python3.9
+      Timeout: 60
+
+  FullLoadStepFunctionParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Step function arn
+      Name: !Sub '/${ParentStack}/full_pipeline/sfn_arn'
+      Type: String
+      Value: !Ref FullLoadStepFunction

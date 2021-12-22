@@ -28,10 +28,10 @@
                 "LogUri": "s3n://aws-logs-831275422924-us-east-1/elasticmapreduce/",
                 "BootstrapActions": [
                     {
-                        "Name": "SyncLibs",
+                        "Name": "SyncLibsAndConfigs",
                         "ScriptBootstrapAction": {
-                            "Args": [ "adamn-831275422924" ],
-                            "Path": "s3://adamn-831275422924/analytics-black-belt-2021/emr/bootstrap/bootstrap.sh"
+                            "Path": "s3://da-black-belt-2021-cicdinfrastruct-artifactbucket-13tvudt22nan0/artifacts/emr/bootstrap/bootstrap.sh",
+                            "Args.$": "States.Array('adamn-831275422924', $.runtime_configs)"
                         }
                     }
                 ],
