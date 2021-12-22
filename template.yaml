@@ -10,6 +10,28 @@ Parameters:
     AllowedPattern: "[a-z_]+"
     Description: Glue Data Catalog Database Name. Only lower-case and _ allowed.
 
+  EmrEc2SubnetId:
+    Type: String
+    AllowedPattern: "subnet-[a-f0-9]+"
+    Description: Subnet EMR clusters will run in
+
+  # For more information EMR security groups: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-man-sec-groups.html
+  EmrManagedMasterSecurityGroup:
+    Type: String
+    AllowedPattern: "sg-[a-f0-9]+"
+    Description: Security group for EMR master
+
+  EmrManagedSlaveSecurityGroup:
+    Type: String
+    AllowedPattern: "sg-[a-f0-9]+"
+    Description: Security group for EMR workers
+
+  AdditionalEmrSecurityGroup:
+    Type: String
+    AllowedPattern: "sg-[a-f0-9]+"
+    Description: Additional security group to attach to EMR clusters
+
+
 Resources:
   DataLakeStack:
     Type: AWS::Serverless::Application
@@ -43,8 +65,12 @@ Resources:
 
   FullPipelineStack:
     Type: AWS::Serverless::Application
-    DependsOn: RuntimeInfrastructureStack
+    DependsOn: [ RuntimeInfrastructureStack, CicdInfrastructureStack ]
     Properties:
       Location: templates/full-pipeline.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
+        EmrEc2SubnetId: !Ref EmrEc2SubnetId
+        EmrManagedMasterSecurityGroup: !Ref EmrManagedMasterSecurityGroup
+        EmrManagedSlaveSecurityGroup: !Ref EmrManagedSlaveSecurityGroup
+        AdditionalEmrSecurityGroup: !Ref AdditionalEmrSecurityGroup

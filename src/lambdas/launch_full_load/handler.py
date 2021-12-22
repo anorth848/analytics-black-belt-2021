@@ -5,11 +5,9 @@ import os
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
 
-sfn_arn = os.environ.get('STEPFUNCTION_ARN',
-               'arn:aws:states:us-east-1:831275422924:stateMachine:FullLoadStepFunction-sFRyZzGfBnid')
-config_table = os.environ.get('CONFIG_TABLE',
-               'da-black-belt-2021-DynamoDbStack-Q4N7US2STWHU-RdbmsConfigTable-E4SG2QC95RL8')
-runtime_bucket = os.environ.get('RUNTIME_BUCKET', 'adamn-831275422924')
+sfn_arn = os.environ.get('STEPFUNCTION_ARN')
+config_table = os.environ.get('CONFIG_TABLE')
+runtime_bucket = os.environ.get('RUNTIME_BUCKET')
 
 log_level = os.environ.get('LOG_LEVEL', logging.INFO)
 
@@ -28,21 +26,22 @@ def write_configs(execution_id, data):
     return s3_uri
 
 
-def munge_configs(input_list):
+def munge_configs(items):
     configs = {
         'DatabaseConfig': {},
         'TableConfigs': {}
     }
-    for config in input_list:
+    for config in items:
         if config['config'] == 'database::config':
             configs['DatabaseConfig'] = config
         elif config['config'].startswith('table::'):
             configs['TableConfigs'][config['config'].split('::')[-1]] = config
+        elif config['config'] == 'emr::config::full_load':
+            configs['EmrConfigs'] = config
         else:
             raise RuntimeError('Unsupported config type')
-    table_list = [x for x in configs['TableConfigs'].keys()]
 
-    return configs, table_list
+    return configs
 
 
 def get_configs(identifier):
@@ -67,15 +66,21 @@ def get_configs(identifier):
     return configs
 
 
-def launch_sfn(identifier, execution_id, config_s3_uri, table_list):
-    client = boto3.client('stepfunctions')
+def generate_sfn_input(identifier, config_s3_uri, configs):
+    table_list = [x for x in configs['TableConfigs'].keys()]
     sfn_input = {
         'lambda': {
             'identifier': identifier,
-            'runtime_configs': config_s3_uri,  # && sudo chmod -R 755 $_
-            'table_list': table_list
+            'runtime_configs': config_s3_uri,
+            'table_list': table_list,
+            'emr': {configs['EmrConfigs']}
         }
     }
+    return sfn_input
+
+
+def launch_sfn(execution_id, sfn_input):
+    client = boto3.client('stepfunctions')
     response = client.start_execution(
         stateMachineArn=sfn_arn,
         name=execution_id,
@@ -87,11 +92,12 @@ def launch_sfn(identifier, execution_id, config_s3_uri, table_list):
 def handler(event, context=None):
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     identifier = event['Identifier']
-    execution_id = f'{identifier}-{timestamp}'
-    config_dict, table_list = get_configs(identifier)
+    execution_id = f'{identifier}-full_load-{timestamp}'
+    config_dict = get_configs(identifier)
     config_s3_uri = write_configs(execution_id, json.dumps(config_dict, indent=4))
     logging.info(f'Runtime config written to: {config_s3_uri}.')
-    response = launch_sfn(identifier, execution_id, config_s3_uri, table_list)
+    sfn_input = generate_sfn_input(identifier, config_s3_uri, config_dict)
+    response = launch_sfn(execution_id, sfn_input)
 
     return {
         "statusCode": response['ResponseMetadata']['HTTPStatusCode'],

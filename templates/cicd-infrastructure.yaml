@@ -44,10 +44,18 @@ Resources:
       Type: String
       Value: !Ref ArtifactBucket
 
-  RuntimeBucketArnParameter:
+  ArtifactBucketArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Description: Runtime s3 bucket arn
       Name: !Sub '/${ParentStack}/cicd/artifact_bucket/arn'
       Type: String
       Value: !GetAtt ArtifactBucket.Arn
+
+  ArtifactPrefixUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Runtime s3 bucket arn
+      Name: !Sub '/${ParentStack}/cicd/artifact_bucket/prefix_uri'
+      Type: String
+      Value: !Sub 's3://${ArtifactBucket}/artifacts'

@@ -8,6 +8,42 @@ Parameters:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
+  EmrEc2SubnetId:
+    Type: String
+    AllowedPattern: "subnet-[a-f0-9]+"
+    Description: Subnet EMR clusters will run in
+
+  # For more information about EMR security groups: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-man-sec-groups.html
+  EmrManagedMasterSecurityGroup:
+    Type: String
+    AllowedPattern: "sg-[a-f0-9]+"
+    Description: Security group for EMR master
+
+  EmrManagedSlaveSecurityGroup:
+    Type: String
+    AllowedPattern: "sg-[a-f0-9]+"
+    Description: Security group for EMR workers
+
+  AdditionalEmrSecurityGroup:
+    Type: String
+    AllowedPattern: "sg-[a-f0-9]+"
+    Description: Additional security group to attach to EMR clusters
+  # For more infomration about EMR IAM roles: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html
+  EmrServiceRole:
+    Type: String
+    Default: "EMR_DefaultRole"
+    Description: Service role for EMR clusters
+
+  EmrJobFlowRole:
+    Type: String
+    Default: "EMR_EC2_DefaultRole"
+    Description: EC2 Role for EMR clusters
+
+  EmrAutoScalingRole:
+    Type: String
+    Default: "EMR_AutoScaling_DefaultRole"
+    Description: Autoscaling role for EMR clusters
+
 Resources:
   FullLoadStepFunctionRole:
     Type: AWS::IAM::Role
@@ -33,16 +69,17 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: ../src/stepfunctions/full_load.json
-#      #DefinitionSubstitutions:
-#        # /da-black-belt-2021/lake/prefix
-#        LakeUri: !Join ['',
-#          [
-#            '{{resolve:ssm:/',
-#            !Ref ParentStack,
-#            '/lake/prefix',
-#            '}}',
-#          ]
-#        ]
+      DefinitionSubstitutions:
+        #/da-black-belt-2021/cicd/artifact_bucket/prefix_uri
+        ArtifactPrefixUri: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/cicd/artifact_bucket/prefix_uri', '}}' ] ]
+        AdditionalEmrSecurityGroup: !Ref AdditionalEmrSecurityGroup
+        EmrEc2SubnetId: !Ref EmrEc2SubnetId
+        EmrManagedMasterSecurityGroup: !Ref EmrManagedMasterSecurityGroup
+        EmrManagedSlaveSecurityGroup: !Ref EmrManagedSlaveSecurityGroup
+        EmrLogUri: !Sub 's3n://aws-logs-${AWS::AccountId}-${AWS::Region}/elasticmapreduce/'
+        EmrServiceRole: !Ref EmrServiceRole
+        EmrJobFlowRole: !Ref EmrJobFlowRole
+        EmrAutoScalingRole: !Ref EmrAutoScalingRole
       Role: !GetAtt FullLoadStepFunctionRole.Arn
       Type: STANDARD
 

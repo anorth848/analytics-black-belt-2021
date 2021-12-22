@@ -7,9 +7,9 @@
             "Resource": "arn:aws:states:::elasticmapreduce:createCluster.sync",
             "InputPath": "$.lambda",
             "Parameters": {
-                "Name": "FullLoad-customer",
+                "Name.$": "$$.Execution.Name",
                 "VisibleToAllUsers": true,
-                "ReleaseLabel": "emr-5.33.1",
+                "ReleaseLabel": "emr-6.4.0",
                 "EbsRootVolumeSize": 10,
                 "Tags": [
                     {
@@ -22,25 +22,26 @@
                     { "Name": "Hadoop" },
                     { "Name": "Spark" }
                 ],
-                "ServiceRole": "EMR_DefaultRole",
-                "JobFlowRole": "EMR_EC2_DefaultRole",
-                "AutoScalingRole": "EMR_AutoScaling_DefaultRole",
-                "LogUri": "s3n://aws-logs-831275422924-us-east-1/elasticmapreduce/",
+                "ServiceRole": "${EmrServiceRole}",
+                "JobFlowRole": "${EmrJobFlowRole}",
+                "AutoScalingRole": "${EmrAutoScalingRole}",
+                "LogUri": "${EmrLogUri}",
+                "StepConcurrencyLevel.$": "$.emr.step_parallelism",
                 "BootstrapActions": [
                     {
                         "Name": "SyncLibsAndConfigs",
                         "ScriptBootstrapAction": {
-                            "Path": "s3://da-black-belt-2021-cicdinfrastruct-artifactbucket-13tvudt22nan0/artifacts/emr/bootstrap/bootstrap.sh",
-                            "Args.$": "States.Array('adamn-831275422924', $.runtime_configs)"
+                            "Path": "${ArtifactPrefixUri}/emr/bootstrap/bootstrap.sh",
+                            "Args.$": "States.Array('${ArtifactPrefixUri}', $.runtime_configs)"
                         }
                     }
                 ],
                 "Instances": {
-                    "AdditionalSlaveSecurityGroups":["sg-0b4899c7082b4dacb"],
-                    "Ec2SubnetId":"subnet-0a452a55f91255add",
-                    "EmrManagedSlaveSecurityGroup":"sg-0b4be1e62e20c802a",
-                    "EmrManagedMasterSecurityGroup":"sg-0124166470738e911",
-                    "AdditionalMasterSecurityGroups":["sg-0b4899c7082b4dacb"],
+                    "AdditionalSlaveSecurityGroups": ["${AdditionalEmrSecurityGroup}"],
+                    "Ec2SubnetId": "${EmrEc2SubnetId}",
+                    "EmrManagedSlaveSecurityGroup": "${EmrManagedSlaveSecurityGroup}",
+                    "EmrManagedMasterSecurityGroup": "${EmrManagedMasterSecurityGroup}",
+                    "AdditionalMasterSecurityGroups": ["${AdditionalEmrSecurityGroup}"],
                     "KeepJobFlowAliveWhenNoSteps": true,
                     "InstanceGroups": [
                         {
@@ -57,7 +58,7 @@
                                 ]
                             },
                             "InstanceRole":"MASTER",
-                            "InstanceType":"m5.xlarge",
+                            "InstanceType.$":"$.emr.master.instance_type",
                             "Name":"Master - 1"
                         },
                         {
@@ -74,7 +75,7 @@
                                 ]
                             },
                             "InstanceRole":"CORE",
-                            "InstanceType":"m4.large",
+                            "InstanceType.$":"$.emr.worker.instance_type",
                             "Name":"Core - 2"
                         }
                     ]
@@ -103,36 +104,60 @@
                 ]
             },
             "ResultPath": "$.cluster",
-            "Next": "FullLoadStep"
+            "Next": "ParallelLoadSteps"
         },
-        "FullLoadStep": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+        "ParallelLoadSteps": {
+            "Type": "Map",
+            "InputPath": "$",
+            "ItemsPath": "$.lambda.table_list",
+            "Next": "TerminateCluster",
+            "ResultPath": "$.steps",
             "Parameters": {
-                "ClusterId.$": "$.cluster.ClusterId",
-                "Step": {
-                    "ActionOnFailure": "CONTINUE",
-                    "HadoopJarStep": {
-                        "Args": [
-                            "spark-submit","s3://adamn-831275422924/analytics-black-belt-2021/emr/scripts/full_load.py"
-                        ],
-                        "Jar": "command-runner.jar"
-                    },
-                    "Name": "FullLoad"
-                }
+                "table_name.$": "$$.Map.Item.Value",
+                "cluster_id.$": "$.cluster.ClusterId"
             },
             "Catch" : [
                 {
                     "ErrorEquals": [ "States.ALL" ],
+                    "ResultPath": "$.steps.errors",
                     "Next": "TerminateCluster"
                 }
             ],
-            "ResultPath": "$.cluster.step",
-            "Next": "TerminateCluster"
+            "Iterator": {
+                "StartAt": "FullLoadStep",
+                "States": {
+                    "FullLoadStep": {
+                        "Type": "Task",
+                        "InputPath": "$",
+                        "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+                        "Parameters": {
+                            "ClusterId.$": "$.cluster_id",
+                            "Step": {
+                                "ActionOnFailure": "CONTINUE",
+                                "HadoopJarStep": {
+                                    "Args.$": "States.Array('spark-submit', '${ArtifactPrefixUri}/emr/scripts/full_load.py', '--table_name', $.table_name)",
+                                    "Jar": "command-runner.jar"
+                                },
+                                "Name.$": "$.table_name"
+                            }
+                        },
+                        "Retry": [
+                            {
+                                "ErrorEquals": [ "States.TaskFailed" ],
+                                "IntervalSeconds": 5,
+                                "MaxAttempts": 5,
+                                "BackoffRate": 1.5
+                            }
+                        ],
+                        "End": true
+                    }
+                }
+            }
         },
         "TerminateCluster": {
             "Type": "Task",
             "Resource": "arn:aws:states:::elasticmapreduce:terminateCluster",
+            "InputPath": "$",
             "Parameters": {
                 "ClusterId.$": "$.cluster.ClusterId"
             },

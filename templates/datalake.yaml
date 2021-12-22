@@ -14,6 +14,11 @@ Parameters:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
+  EmrJobFlowRole:
+    Type: String
+    Default: "EMR_EC2_DefaultRole"
+    Description: EC2 Role for EMR clusters
+
 Resources:
   LakeBucket:
     Type: AWS::S3::Bucket
@@ -65,7 +70,7 @@ Resources:
     DependsOn: GlueDatabase
     Properties:
       DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrJobFlowRole}'
       Permissions:
         - ALL
       Resource:
@@ -78,7 +83,7 @@ Resources:
     DependsOn: [ GlueDatabase, LakeLocationResource ]
     Properties:
       DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrJobFlowRole}'
       Permissions:
         - DATA_LOCATION_ACCESS
       Resource:
@@ -91,7 +96,7 @@ Resources:
     DependsOn: GlueDatabase
     Properties:
       DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrJobFlowRole}'
       Permissions:
         - ALL
       Resource:
