@@ -40,6 +40,7 @@ def munge_configs(items):
         elif config['config'] == 'emr::config::full_load':
             configs['EmrConfigs'] = config
             configs['EmrConfigs']['step_parallelism'] = int(config['step_parallelism'])
+            configs['EmrConfigs']['worker']['count'] = int(config['worker']['count'])
         else:
             raise RuntimeError('Unsupported config type')
 

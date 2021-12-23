@@ -62,7 +62,7 @@
                             "Name":"Master - 1"
                         },
                         {
-                            "InstanceCount":1,
+                            "InstanceCount.$":"$.emr.worker.count",
                             "EbsConfiguration":{
                                 "EbsBlockDeviceConfigs":[
                                     {
