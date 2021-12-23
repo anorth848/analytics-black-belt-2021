@@ -29,7 +29,8 @@ def write_configs(execution_id, data):
 def munge_configs(items):
     configs = {
         'DatabaseConfig': {},
-        'TableConfigs': {}
+        'TableConfigs': {},
+        'EmrConfigs': {}
     }
     for config in items:
         if config['config'] == 'database::config':
@@ -38,6 +39,7 @@ def munge_configs(items):
             configs['TableConfigs'][config['config'].split('::')[-1]] = config
         elif config['config'] == 'emr::config::full_load':
             configs['EmrConfigs'] = config
+            configs['EmrConfigs']['step_parallelism'] = int(config['step_parallelism'])
         else:
             raise RuntimeError('Unsupported config type')
 
@@ -73,7 +75,7 @@ def generate_sfn_input(identifier, config_s3_uri, configs):
             'identifier': identifier,
             'runtime_configs': config_s3_uri,
             'table_list': table_list,
-            'emr': {configs['EmrConfigs']}
+            'emr': configs['EmrConfigs']
         }
     }
     return sfn_input
