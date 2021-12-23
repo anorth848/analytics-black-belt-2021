@@ -1,0 +1,69 @@
+[
+    {
+        "secret": "da-black-belt-2021/rdbms/hammerdb",
+        "target_db_name": "hammerdb",
+        "config": "database::config",
+        "identifier": "hammerdb"
+    },
+    {
+        "master": {
+            "instance_type": "m5.xlarge"
+        },
+        "step_parallelism": 4,
+        "config": "emr::config::full_load",
+        "identifier": "hammerdb",
+        "worker": {
+            "count": 4,
+            "instance_type": "m5.2xlarge"
+        }
+    },
+    {
+        "primary_key": "c_w_id,c_d_id,c_id",
+        "watermark": "c_since",
+        "is_partitioned": false,
+        "config": "table::public.customer",
+        "identifier": "hammerdb"
+    },
+    {
+        "primary_key": "d_w_id,d_id",
+        "watermark": "d_ytd",
+        "is_partitioned": false,
+        "config": "table::public.district",
+        "identifier": "hammerdb"
+    },
+    {
+        "primary_key": "i_id",
+        "watermark": "i_im_id",
+        "is_partitioned": false,
+        "config": "table::public.item",
+        "identifier": "hammerdb"
+    },
+    {
+        "primary_key": "no_w_id, no_d_id, no_o_id",
+        "watermark": "no_o_id",
+        "is_partitioned": false,
+        "config": "table::public.new_order",
+        "identifier": "hammerdb"
+    },
+    {
+        "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
+        "watermark": "ol_number",
+        "is_partitioned": false,
+        "config": "table::public.order_line",
+        "identifier": "hammerdb"
+    },
+    {
+        "primary_key": "o_w_id, o_d_id, o_id",
+        "watermark": "o_entry_d",
+        "is_partitioned": false,
+        "config": "table::public.orders",
+        "identifier": "hammerdb"
+    },
+    {
+        "primary_key": "s_i_id,s_w_id",
+        "watermark": "s_ytd",
+        "is_partitioned": false,
+        "config": "table::public.stock",
+        "identifier": "hammerdb"
+    }
+]

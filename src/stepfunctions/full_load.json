@@ -37,11 +37,7 @@
                     }
                 ],
                 "Instances": {
-                    "AdditionalSlaveSecurityGroups": ["${AdditionalEmrSecurityGroup}"],
                     "Ec2SubnetId": "${EmrEc2SubnetId}",
-                    "EmrManagedSlaveSecurityGroup": "${EmrManagedSlaveSecurityGroup}",
-                    "EmrManagedMasterSecurityGroup": "${EmrManagedMasterSecurityGroup}",
-                    "AdditionalMasterSecurityGroups": ["${AdditionalEmrSecurityGroup}"],
                     "KeepJobFlowAliveWhenNoSteps": true,
                     "InstanceGroups": [
                         {

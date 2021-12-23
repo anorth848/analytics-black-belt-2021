@@ -14,11 +14,6 @@ Parameters:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
-  EmrJobFlowRole:
-    Type: String
-    Default: "EMR_EC2_DefaultRole"
-    Description: EC2 Role for EMR clusters
-
 Resources:
   LakeBucket:
     Type: AWS::S3::Bucket
@@ -58,52 +53,57 @@ Resources:
         Name: !Ref DbName
         LocationUri: !Sub 's3://${LakeBucket}/${DbName}/'
 
+  LakeFormationLocationRole:
+    Type: AWS::IAM::Role
+    DependsOn: [ LakeBucket, GlueDatabase ]
+    Properties:
+      AssumeRolePolicyDocument: {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "lakeformation.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          }
+        ]
+      }
+      Description: Service role for LakeFormation
+      MaxSessionDuration: 43200
+      Policies:
+        - PolicyName: LakeFormation
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: ListAll
+                Effect: Allow
+                Action:
+                  - s3:ListAllMybuckets
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::*'
+              - Sid: ListBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt LakeBucket.Arn
+              - Sid: S3ObjectAccess
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Join ["/", [ !GetAtt LakeBucket.Arn, !Ref GlueDatabase, '*' ] ]
+                  - !Join ["/", [ !GetAtt LakeBucket.Arn, !Ref GlueDatabase ] ]
+
   LakeLocationResource:
     Type: AWS::LakeFormation::Resource
+    DependsOn: LakeFormationLocationRole
     Properties:
       ResourceArn: !Join ["/", [ !GetAtt LakeBucket.Arn, !Ref GlueDatabase ]]
+      # ServiceLinkedRole does not properly delete using CloudFormation so using a traditional IAM role
       UseServiceLinkedRole: FALSE
-      RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/EMR_EC2_DefaultRole'
-
-  EmrLakeDbPermissions:
-    Type: AWS::LakeFormation::Permissions
-    DependsOn: GlueDatabase
-    Properties:
-      DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrJobFlowRole}'
-      Permissions:
-        - ALL
-      Resource:
-        DatabaseResource:
-          CatalogId: !Ref AWS::AccountId
-          Name: !Ref GlueDatabase
-
-  EmrLakeLocationPermissions:
-    Type: AWS::LakeFormation::Permissions
-    DependsOn: [ GlueDatabase, LakeLocationResource ]
-    Properties:
-      DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrJobFlowRole}'
-      Permissions:
-        - DATA_LOCATION_ACCESS
-      Resource:
-        DataLocationResource:
-          CatalogId: !Ref AWS::AccountId
-          S3Resource: !Join ["/", [ !GetAtt LakeBucket.Arn, !Ref GlueDatabase ]]
-
-  EmrLakeTablePermissions:
-    Type: AWS::LakeFormation::Permissions
-    DependsOn: GlueDatabase
-    Properties:
-      DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrJobFlowRole}'
-      Permissions:
-        - ALL
-      Resource:
-        TableResource:
-          CatalogId: !Ref AWS::AccountId
-          DatabaseName: !Ref GlueDatabase
-          TableWildcard: {}
+      RoleArn: !GetAtt LakeFormationLocationRole.Arn
 
   CatalogParameter:
     Type: AWS::SSM::Parameter
@@ -113,13 +113,21 @@ Resources:
       Type: String
       Value: !Ref GlueDatabase
 
-  BucketParameter:
+  BucketNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Description: Data Lake s3 bucket
-      Name: !Sub '/${ParentStack}/lake/bucket'
+      Name: !Sub '/${ParentStack}/lake/bucket/name'
       Type: String
       Value: !Ref LakeBucket
+
+  BucketArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Data Lake s3 bucket
+      Name: !Sub '/${ParentStack}/lake/bucket/arn'
+      Type: String
+      Value: !GetAtt LakeBucket.Arn
 
   PrefixParameter:
     Type: AWS::SSM::Parameter

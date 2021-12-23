@@ -28,16 +28,12 @@ Parameters:
     Type: String
     AllowedPattern: "sg-[a-f0-9]+"
     Description: Additional security group to attach to EMR clusters
+
   # For more infomration about EMR IAM roles: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html
   EmrServiceRole:
     Type: String
     Default: "EMR_DefaultRole"
     Description: Service role for EMR clusters
-
-  EmrJobFlowRole:
-    Type: String
-    Default: "EMR_EC2_DefaultRole"
-    Description: EC2 Role for EMR clusters
 
   EmrAutoScalingRole:
     Type: String
@@ -45,6 +41,85 @@ Parameters:
     Description: Autoscaling role for EMR clusters
 
 Resources:
+  EmrEc2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "ec2.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          }
+        ]
+      }
+      Description: Role for EMR EC2 instances
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
+      MaxSessionDuration: 43200
+      Policies:
+        - PolicyName: FullLoadPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: Secrets
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${ParentStack}/*'
+
+  EmrEc2InstanceProfile:
+    DependsOn: EmrEc2Role
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Ref EmrEc2Role
+      Roles:
+        - !Ref EmrEc2Role
+
+  EmrLakeDbPermissions:
+    Type: AWS::LakeFormation::Permissions
+    DependsOn: EmrEc2Role
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !GetAtt EmrEc2Role.Arn
+      Permissions:
+        - ALL
+      Resource:
+        DatabaseResource:
+          CatalogId: !Ref AWS::AccountId
+          Name: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/catalog', '}}' ] ]
+
+  EmrLakeLocationPermissions:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrEc2Role}'
+      Permissions:
+        - DATA_LOCATION_ACCESS
+      Resource:
+        DataLocationResource:
+          CatalogId: !Ref AWS::AccountId
+          S3Resource: !Join ["/", [
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/arn}}',
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/catalog}}'
+          ] ]
+
+  EmrLakeTablePermissions:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrEc2Role}'
+      Permissions:
+        - ALL
+      Resource:
+        TableResource:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Sub '{{resolve:ssm:/${ParentStack}/lake/catalog}}'
+          TableWildcard: {}
+
   FullLoadStepFunctionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -64,6 +139,16 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEMRFullAccessPolicy_v2
       MaxSessionDuration: 43200
+      Policies:
+        - PolicyName: Inline
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: PassRole
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt EmrEc2Role.Arn
 
   FullLoadStepFunction:
     Type: AWS::Serverless::StateMachine
@@ -78,7 +163,7 @@ Resources:
         EmrManagedSlaveSecurityGroup: !Ref EmrManagedSlaveSecurityGroup
         EmrLogUri: !Sub 's3n://aws-logs-${AWS::AccountId}-${AWS::Region}/elasticmapreduce/'
         EmrServiceRole: !Ref EmrServiceRole
-        EmrJobFlowRole: !Ref EmrJobFlowRole
+        EmrJobFlowRole: !Ref EmrEc2InstanceProfile
         EmrAutoScalingRole: !Ref EmrAutoScalingRole
       Role: !GetAtt FullLoadStepFunctionRole.Arn
       Type: STANDARD

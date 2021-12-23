@@ -65,7 +65,7 @@ Resources:
 
   FullPipelineStack:
     Type: AWS::Serverless::Application
-    DependsOn: [ RuntimeInfrastructureStack, CicdInfrastructureStack ]
+    DependsOn: [ RuntimeInfrastructureStack, CicdInfrastructureStack, DataLakeStack ]
     Properties:
       Location: templates/full-pipeline.yaml
       Parameters:
