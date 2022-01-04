@@ -94,7 +94,7 @@
                         "Properties":{
                             "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
                             "spark.sql.hive.convertMetastore": "false",
-                            "spark.jars": "/usr/lib/hudi/hudi-spark-bundle.jar,/usr/lib/spark/external/lib/spark-avro.jar"
+                            "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar"
                         }
                     }
                 ]

@@ -1,9 +1,11 @@
-from pyspark.sql import SparkSession
 import argparse
 import json
 import logging
 import os
 import boto3
+from hudi import get_hudi_options
+from pyspark.sql import SparkSession
+from util import get_secret
 
 log_level = os.environ.get('LOG_LEVEL', logging.INFO)
 
@@ -26,44 +28,51 @@ def get_args():
     return args
 
 
+def get_spark_jdbc(secret, table_name):
+    username = secret['username']
+    password = secret['password']
+    engine = secret['engine']
+    host = secret['host']
+    port = secret['port']
+    dbname = secret['dbname']
+
+    if engine.startswith('postgres'):
+        driver = 'org.postgresql.Driver'
+        engine = 'postgresql'
+    else:
+        raise ValueError(f'Engine {engine} not yet supported.')
+
+    spark = SparkSession\
+        .builder\
+        .appName(f"{dbname}.{table_name}_to_HudiLake")\
+        .getOrCreate()
+
+    return spark.read.format('jdbc') \
+        .option('url', f'jdbc:{engine}://{host}:{port}/{dbname}') \
+        .option('dbtable', table_name) \
+        .option('user', username) \
+        .option('password', password) \
+        .option("driver", driver)
+
+
 def main():
     args = get_args()
     table_name = args.table_name
     short_table_name = table_name.split('.')[-1]
     f = open('/mnt/var/lib/instance-controller/public/runtime_configs/full_load_configs.json')
     config_dict = json.load(f)
-    glue_database = config_dict['DatabaseConfig']['target_db_name']
-    lake_location_uri = get_lake_prefix(glue_database)
+    logging.debug(config_dict)
+
+    database_config = config_dict['DatabaseConfig']
     table_config = config_dict['TableConfigs'][table_name]
-    primary_key = table_config['primary_key']
-    precombine_field = table_config['watermark']
-    print(config_dict)
+    secret_id = database_config['secret']
+    glue_database = database_config['target_db_name']
 
-    spark = SparkSession\
-        .builder\
-        .appName("JdbcToHudi")\
-        .getOrCreate()
+    hudi_options = get_hudi_options(short_table_name, database_config, table_config, 'FULL')
+    lake_location_uri = get_lake_prefix(glue_database)
+    spark_jdbc = get_spark_jdbc(get_secret(secret_id), table_name)
 
-    df = spark.read.format('jdbc') \
-        .option("url", "jdbc:postgresql://pg-hammerdb.cob4psnojwdw.us-east-1.rds.amazonaws.com:5432/hammerdb") \
-        .option('dbtable', table_name) \
-        .option('user', 'postgres') \
-        .option('password', 'WQ6psvDWVLA8myZ') \
-        .option("driver", "org.postgresql.Driver") \
-        .load()
-
-    hudi_options = {
-        'hoodie.table.name': short_table_name,
-        'hoodie.datasource.write.recordkey.field': primary_key,
-        'hoodie.datasource.write.precombine.field': precombine_field,
-        'hoodie.datasource.hive_sync.database': 'hammerdb',
-        'hoodie.datasource.hive_sync.enable': 'true',
-        'hoodie.datasource.hive_sync.table': short_table_name,
-        'hoodie.datasource.hive_sync.partition_extractor_class': 'org.apache.hudi.hive.NonPartitionedExtractor',
-        'hoodie.datasource.write.keygenerator.class': 'org.apache.hudi.keygen.ComplexKeyGenerator',
-        'hoodie.datasource.write.operation': 'bulk_insert',
-        'hoodie.bulkinsert.sort.mode': 'NONE'
-    }
+    df = spark_jdbc.load()
 
     df.write \
         .format('org.apache.hudi') \
