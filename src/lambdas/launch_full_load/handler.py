@@ -9,7 +9,7 @@ sfn_arn = os.environ.get('STEPFUNCTION_ARN')
 config_table = os.environ.get('CONFIG_TABLE')
 runtime_bucket = os.environ.get('RUNTIME_BUCKET')
 
-log_level = os.environ.get('LOG_LEVEL', logging.INFO)
+log_level = os.environ.get('LOG_LEVEL', 'INFO')
 
 logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(message)s',
@@ -76,7 +76,8 @@ def generate_sfn_input(identifier, config_s3_uri, configs):
             'identifier': identifier,
             'runtime_configs': config_s3_uri,
             'table_list': table_list,
-            'emr': configs['EmrConfigs']
+            'emr': configs['EmrConfigs'],
+            'log_level': log_level
         }
     }
     return sfn_input

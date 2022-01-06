@@ -168,7 +168,7 @@ Resources:
       Role: !GetAtt FullLoadStepFunctionRole.Arn
       Type: STANDARD
 
-  FullLoadLambdaLaunchRole:
+  LaunchFullLoadLambdaRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -214,7 +214,7 @@ Resources:
                       '*'
                     ]]
 
-  FullLoadLambdaFunction:
+  LaunchFullLoadLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../src/lambdas/launch_full_load/
@@ -226,14 +226,22 @@ Resources:
           RUNTIME_BUCKET: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/bucket/name', '}}' ] ]
           LOG_LEVEL: 'INFO'
       Handler: handler.handler
-      Role: !GetAtt FullLoadLambdaLaunchRole.Arn
+      Role: !GetAtt LaunchFullLoadLambdaRole.Arn
       Runtime: python3.9
       Timeout: 60
 
-  FullLoadStepFunctionParameter:
+  LaunchFullLoadLambdaArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Launch lambda arn
+      Name: !Sub '/${ParentStack}/full_pipeline/launch_lambda/arn'
+      Type: String
+      Value: !GetAtt LaunchFullLoadLambdaFunction.Arn
+
+  FullLoadStepFunctionArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Description: Step function arn
-      Name: !Sub '/${ParentStack}/full_pipeline/sfn_arn'
+      Name: !Sub '/${ParentStack}/full_pipeline/stepfunction/arn'
       Type: String
       Value: !Ref FullLoadStepFunction

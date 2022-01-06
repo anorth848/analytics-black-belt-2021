@@ -15,8 +15,9 @@
  capabilities = ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM", "CAPABILITY_AUTO_EXPAND"]
  tags = "project=\"2021-black-belt\" stage=\"dev\""
  parameter_overrides = """
-    DbName=hammerdb
+    UseCase=hammerdb
     AdditionalEmrSecurityGroup=sg-0b4899c7082b4dacb
     EmrEc2SubnetId=subnet-0a452a55f91255add
     EmrManagedMasterSecurityGroup=sg-0124166470738e911
-    EmrManagedSlaveSecurityGroup=sg-0b4be1e62e20c802a"""
+    EmrManagedSlaveSecurityGroup=sg-0b4be1e62e20c802a
+    CreateQuickSightInfrastructure=TRUE"""

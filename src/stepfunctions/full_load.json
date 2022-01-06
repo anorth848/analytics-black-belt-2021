@@ -96,6 +96,18 @@
                             "spark.sql.hive.convertMetastore": "false",
                             "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar"
                         }
+                    },
+                    {
+                        "Classification":"spark-env",
+                        "Properties":{},
+                        "Configurations": [
+                           {
+                             "Classification": "export",
+                             "Properties": {
+                                 "LOG_LEVEL.$": "$.log_level"
+                             }
+                           }
+                        ]
                     }
                 ]
             },
@@ -131,7 +143,7 @@
                             "Step": {
                                 "ActionOnFailure": "CONTINUE",
                                 "HadoopJarStep": {
-                                    "Args.$": "States.Array('spark-submit', '${ArtifactPrefixUri}/emr/scripts/full_load.py', '--table_name', $.table_name)",
+                                    "Args.$": "States.Array('spark-submit', '/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', $.table_name)",
                                     "Jar": "command-runner.jar"
                                 },
                                 "Name.$": "$.table_name"

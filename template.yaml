@@ -4,11 +4,11 @@ Description: >
   #TODO
 
 Parameters:
-  DbName:
+  UseCase:
     Type: String
     Default: hammerdb
     AllowedPattern: "[a-z_]+"
-    Description: Glue Data Catalog Database Name. Only lower-case and _ allowed.
+    Description: The use case. This will be used for naming resources throughout nested stacks.
 
   EmrEc2SubnetId:
     Type: String
@@ -31,6 +31,20 @@ Parameters:
     AllowedPattern: "sg-[a-f0-9]+"
     Description: Additional security group to attach to EMR clusters
 
+  CreateQuickSightInfrastructure:
+    Type: String
+    AllowedValues: ['TRUE', 'FALSE']
+    Default: 'FALSE'
+
+  CreateNetworkInfrastructure:
+    Type: String
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'FALSE'
+
+Conditions:
+  CreateQuickSightInfrastructure: !Equals
+    - !Ref CreateQuickSightInfrastructure
+    - 'TRUE'
 
 Resources:
   DataLakeStack:
@@ -38,7 +52,7 @@ Resources:
     Properties:
       Location: templates/datalake.yaml
       Parameters:
-        DbName: !Ref DbName
+        UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
 
   CicdInfrastructureStack:
@@ -54,13 +68,15 @@ Resources:
       Location: templates/runtime-infrastructure.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
+        UseCase: !Ref UseCase
+        CreateNetworkInfrastructure: !Ref CreateNetworkInfrastructure
 
   SecretsStack:
     Type: AWS::Serverless::Application
     Properties:
       Location: templates/secrets.yaml
       Parameters:
-        SecretName: !Ref DbName
+        SecretName: !Ref UseCase
         ParentStack: !Ref AWS::StackName
 
   FullPipelineStack:
@@ -74,3 +90,15 @@ Resources:
         EmrManagedMasterSecurityGroup: !Ref EmrManagedMasterSecurityGroup
         EmrManagedSlaveSecurityGroup: !Ref EmrManagedSlaveSecurityGroup
         AdditionalEmrSecurityGroup: !Ref AdditionalEmrSecurityGroup
+
+  #  This stack assumes you've enabled QuickSight in this account and have access from your IAM credentials
+  #  and Parameter CreateQuickSightInfrastructure set to 'TRUE'
+  QuickSightInfrastructureStack:
+    Type: AWS::Serverless::Application
+    Condition: CreateQuickSightInfrastructure
+    DependsOn: [ DataLakeStack ]
+    Properties:
+      Location: templates/quicksight-infrastructure.yaml
+      Parameters:
+        UseCase: !Ref UseCase
+        ParentStack: !Ref AWS::StackName

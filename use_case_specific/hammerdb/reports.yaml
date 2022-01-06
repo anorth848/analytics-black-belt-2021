@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Use-case specific stack for reports
+
+Parameters:
+  UseCase:
+    Type: String
+    Default: hammerdb
+    AllowedPattern: "[a-z_]+"
+
+  ParentStack:
+    Type: String
+    Default: 'da-black-belt-2021'
+    Description: The stack which created all required infrastructure
+
+Resources:
+  UndeliveredOrdersDataset:
+    Type: AWS::QuickSight::DataSet
+    Properties:
+      AwsAccountId: !Sub '${AWS::AccountId}'
+      ImportMode: DIRECT_QUERY
+      DataSetId: !Join [ '-', [ !Ref ParentStack, !Ref UseCase, 'Undelivered' ] ]
+      Name: !Sub '${UseCase} Largest Undelivered Orders'
+      Permissions:
+        - Actions: [ quicksight:* ]
+          Principal: !Sub 'arn:aws:iam::${AWS::AccountId}:user/adamn'
+      PhysicalTableMap:
+        PushdownQuery:
+          CustomSql:
+            DataSourceArn: !Sub '{{resolve:ssm:/${ParentStack}/quicksight/data_source/arn}}'
+            Name: !Sub '${UseCase} Largest Undelivered Orders Pushdown query'
+            Columns:
+              - Name: "customer_id"
+                Type: "INTEGER"
+              - Name: "warehouse_id"
+                Type: "INTEGER"
+              - Name: "district_id"
+                Type: "INTEGER"
+              - Name: "last_name"
+                Type: "STRING"
+              - Name: "customer_zip"
+                Type: "STRING"
+              - Name: "order_id"
+                Type: "STRING"
+              - Name: "order_datetime"
+                Type: "DATETIME"
+              - Name: "sum_quantity"
+                Type: "INTEGER"
+              - Name: "sum_amount"
+                Type: "DECIMAL"
+              - Name: "sum_undelivered"
+                Type: "INTEGER"
+            SqlQuery: !Sub |
+              SELECT
+                c_id AS customer_id,
+                c_w_id AS warehouse_id,
+                  c_d_id AS district_id,
+                  c_last AS last_name,
+                  CAST(c_zip AS CHAR(9)) AS customer_zip,
+                  CAST(o_id AS VARCHAR(32)) AS order_id,
+                  FROM_UNIXTIME(CEIL(o_entry_d/1000)) AS order_datetime,
+                  SUM(ol_quantity) AS sum_quantity,
+                  SUM(ol_amount) AS sum_amount,
+                  SUM(CASE WHEN ol_delivery_d IS NULL THEN 1 ELSE 0 END) AS sum_undelivered
+              FROM
+                  ${UseCase}.customer c
+                  JOIN ${UseCase}.orders o
+                      ON  c.c_id   = o.o_c_id
+                      AND c.c_w_id = o.o_w_id
+                      AND c.c_d_id = o.o_d_id
+                  JOIN ${UseCase}.order_line ol
+                      ON  o.o_id   = ol.ol_o_id
+                      AND o.o_w_id = ol.ol_w_id
+                      AND o.o_d_id = ol.ol_d_id
+              GROUP BY 1,2,3,4,5,6,7
+              HAVING SUM(CASE WHEN ol_delivery_d IS NULL THEN 1 ELSE 0 END) > 0
+              ORDER BY 9 DESC
+              LIMIT 20
+
+      LogicalTableMap:
+        LogicalPushdownQuery:
+          Alias: !Sub '${UseCase} Largest Undelivered Orders Pushdown query'
+          Source:
+            PhysicalTableId: PushdownQuery
+          DataTransforms:
+            - TagColumnOperation:
+                ColumnName: customer_zip
+                Tags:
+                  - ColumnGeographicRole: POSTCODE
+            - ProjectOperation:
+                ProjectedColumns:
+                  - "customer_id"
+                  - "warehouse_id"
+                  - "district_id"
+                  - "last_name"
+                  - "customer_zip"
+                  - "order_id"
+                  - "order_datetime"
+                  - "sum_quantity"
+                  - "sum_amount"
+                  - "sum_undelivered"
+#  UndeliveredOrdersAnalysis:
+#    Type: AWS::QuickSight::Analysis
+#    DependsOn: UndeliveredOrdersDataset
+#    Properties:
+#      AwsAccountId: !Sub '${AWS::AccountId}'
+#      ImportMode: DIRECT_QUERY
+#      AnalysisId: !Join [ '-', [ !Ref ParentStack, !Ref UseCase, 'Undelivered' ] ]
+#      Name: !Sub '${UseCase} Largest Undelivered Orders'
+#      SourceEntity:
+
+Outputs:
+  UndeliveredOrdersDatasetArn:
+    Description: Arn of the UndeliveredOrders DataSet
+    Value: !GetAtt UndeliveredOrdersDataset.Arn
+
+#  UndeliveredOrdersDatasetOutputColumns:
+#    Description: Output Columns of the UndeliveredOrders DataSet
+#    Value: !GetAtt UndeliveredOrdersDataset.OutputColumns
+
+#      OutputColumns:
+#        - Name: "customer_id"
+#          Type: "INTEGER"
+#        - Name: "warehouse_id"
+#          Type: "INTEGER"
+#        - Name: "district_id"
+#          Type: "INTEGER"
+#        - Name: "last_name"
+#          Type: "STRING"
+#        - Name: "customer_zip"
+#          Type: "STRING"
+#        - Name: "order_id"
+#          Type: "STRING"
+#        - Name: "order_datetime"
+#          Type: "DATETIME"
+#        - Name: "sum_quantity"
+#          Type: "INTEGER"
+#        - Name: "sum_amount"
+#          Type: "DECIMAL"
+#        - Name: "sum_undelivered"
+#          Type: "INTEGER"

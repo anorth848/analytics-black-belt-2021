@@ -4,11 +4,10 @@ Description: >
   #TODO
 
 Parameters:
-  DbName:
+  UseCase:
     Type: String
     Default: hammerdb
     AllowedPattern: "[a-z_]+"
-    Description: Glue Data Catalog Database Name. Only lower-case and _ allowed.
 
   ParentStack:
     Type: String
@@ -50,8 +49,8 @@ Resources:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Description: Data Lake database
-        Name: !Ref DbName
-        LocationUri: !Sub 's3://${LakeBucket}/${DbName}/'
+        Name: !Ref UseCase
+        LocationUri: !Sub 's3://${LakeBucket}/${UseCase}/'
 
   LakeFormationLocationRole:
     Type: AWS::IAM::Role

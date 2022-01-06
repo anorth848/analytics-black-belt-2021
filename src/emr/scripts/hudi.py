@@ -25,6 +25,8 @@ def get_hudi_options(table_name, database_name, table_config, operation):
         extractor = 'org.apache.hudi.hive.NonPartitionedExtractor'
         hudi_options['hoodie.datasource.hive_sync.partition_extractor_class'] = extractor
     else:
+        # TODO: Make sure we don't need to specify 'hoodie.datasource.hive_sync.partition_extractor_class'
+        #       In this scenario
         partition_path = table_config['partition_path']
         hudi_options['hoodie.datasource.write.partitionpath.field'] = partition_path
 

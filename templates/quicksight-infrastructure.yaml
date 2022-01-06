@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Quicksight stack for reporting
+  Note: This stack assumes
+    1. You've enabled quicksight in the account and that the quicksight service role exists
+
+Parameters:
+  UseCase:
+    Type: String
+    Default: hammerdb
+    AllowedPattern: "[a-z_]+"
+
+  ParentStack:
+    Type: String
+    Description: Parent stack this template was launched from, used for naming SSM parameters
+
+  AthenaWorkGroup:
+    Type: String
+    Default: primary
+    Description: The Athena workgroup used by Quicksight data sources
+
+Resources:
+  QuickSightLakeDbPermissions:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/aws-quicksight-service-role-v0'
+      Permissions:
+        - DESCRIBE
+      Resource:
+        DatabaseResource:
+          CatalogId: !Ref AWS::AccountId
+          Name: !Ref UseCase
+
+  QuickSightTablePermissions:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/aws-quicksight-service-role-v0'
+      Permissions:
+        - DESCRIBE
+        - SELECT
+      Resource:
+        TableResource:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref UseCase
+          TableWildcard: { }
+
+  AthenaDataSource:
+    Type: AWS::QuickSight::DataSource
+    Properties:
+      Name: !Sub 'Athena-{{resolve:ssm:/${ParentStack}/lake/catalog}}'
+      AwsAccountId: !Sub '${AWS::AccountId}'
+      DataSourceId: !Join ['-', [ !Ref ParentStack, !Ref UseCase ] ]
+      DataSourceParameters:
+        AthenaParameters:
+          Workgroup: !Ref AthenaWorkGroup
+      SslProperties:
+        DisableSsl: FALSE
+      Type: ATHENA
+
+  AthenaDataSourceParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Datasource for Athena
+      Name: !Sub '/${ParentStack}/quicksight/data_source/arn'
+      Type: String
+      Value: !GetAtt AthenaDataSource.Arn
