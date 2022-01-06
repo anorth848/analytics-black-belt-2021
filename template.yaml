@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  #TODO
+  Parent template for all components related to the project
 
 Parameters:
   UseCase:
@@ -14,22 +14,6 @@ Parameters:
     Type: String
     AllowedPattern: "subnet-[a-f0-9]+"
     Description: Subnet EMR clusters will run in
-
-  # For more information EMR security groups: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-man-sec-groups.html
-  EmrManagedMasterSecurityGroup:
-    Type: String
-    AllowedPattern: "sg-[a-f0-9]+"
-    Description: Security group for EMR master
-
-  EmrManagedSlaveSecurityGroup:
-    Type: String
-    AllowedPattern: "sg-[a-f0-9]+"
-    Description: Security group for EMR workers
-
-  AdditionalEmrSecurityGroup:
-    Type: String
-    AllowedPattern: "sg-[a-f0-9]+"
-    Description: Additional security group to attach to EMR clusters
 
   CreateQuickSightInfrastructure:
     Type: String
@@ -45,14 +29,35 @@ Conditions:
   CreateQuickSightInfrastructure: !Equals
     - !Ref CreateQuickSightInfrastructure
     - 'TRUE'
+  CreateNetworkInfrastructure: !Equals
+    - !Ref CreateNetworkInfrastructure
+    - 'TRUE'
 
 Resources:
+  NetworkInfrastructureStack:
+    Type: AWS::Serverless::Application
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      Location: templates/network-infrastructure.yaml
+      Parameters:
+        UseCase: !Ref UseCase
+        ParentStack: !Ref AWS::StackName
+
   DataLakeStack:
     Type: AWS::Serverless::Application
     Properties:
       Location: templates/datalake.yaml
       Parameters:
         UseCase: !Ref UseCase
+        ParentStack: !Ref AWS::StackName
+
+  DataLakeBucketPolicyStack:
+    Type: AWS::Serverless::Application
+    Condition: CreateNetworkInfrastructure
+    DependsOn: [ NetworkInfrastructureStack, DataLakeStack ]
+    Properties:
+      Location: templates/datalake-bucketpolicy.yaml
+      Parameters:
         ParentStack: !Ref AWS::StackName
 
   CicdInfrastructureStack:
@@ -86,10 +91,7 @@ Resources:
       Location: templates/full-pipeline.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
-        EmrEc2SubnetId: !Ref EmrEc2SubnetId
-        EmrManagedMasterSecurityGroup: !Ref EmrManagedMasterSecurityGroup
-        EmrManagedSlaveSecurityGroup: !Ref EmrManagedSlaveSecurityGroup
-        AdditionalEmrSecurityGroup: !Ref AdditionalEmrSecurityGroup
+        EmrEc2SubnetId: !If [ CreateNetworkInfrastructure, "", !Ref EmrEc2SubnetId ]
 
   #  This stack assumes you've enabled QuickSight in this account and have access from your IAM credentials
   #  and Parameter CreateQuickSightInfrastructure set to 'TRUE'

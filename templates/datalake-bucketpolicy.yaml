@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Bucket policy for the Datalake bucket to restrict data access through the VPC endpoint only
+
+Parameters:
+  ParentStack:
+    Type: String
+    Description: Parent stack this template was launched from, used for naming SSM parameters
+
+Resources:
+  LakeBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/name}}'
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: "Data-access-to-specific-VPCE"
+            Principal: "*"
+            Action:
+              - "s3:GetObject*"
+              - "s3:PutObject*"
+            Effect: "Deny"
+            Resource:
+              - !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/arn}}/*'
+            Condition:
+              StringNotEquals:
+                aws:SourceVpce: !Sub '{{resolve:ssm:/${ParentStack}/network/vpce/datalake/id}}'

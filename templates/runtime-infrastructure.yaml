@@ -1,12 +1,27 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  #TODO
+  Infrastructure components required at runtime for the pipeline resources to function
 
 Parameters:
   ParentStack:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
+
+  UseCase:
+    Type: String
+    Default: hammerdb
+    AllowedPattern: "[a-z_]+"
+
+  CreateNetworkInfrastructure:
+    Type: String
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'FALSE'
+
+Conditions:
+  CreateNetworkInfrastructure: !Equals
+    - !Ref CreateNetworkInfrastructure
+    - 'TRUE'
 
 Resources:
   SourceConfigTable:

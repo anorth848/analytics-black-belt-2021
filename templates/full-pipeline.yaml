@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  #TODO
+  This stack contains all components for the full load from RDBMS using EMR into the Data Lake
 
 Parameters:
   ParentStack:
@@ -10,24 +10,8 @@ Parameters:
 
   EmrEc2SubnetId:
     Type: String
-    AllowedPattern: "subnet-[a-f0-9]+"
+    Default: ""
     Description: Subnet EMR clusters will run in
-
-  # For more information about EMR security groups: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-man-sec-groups.html
-  EmrManagedMasterSecurityGroup:
-    Type: String
-    AllowedPattern: "sg-[a-f0-9]+"
-    Description: Security group for EMR master
-
-  EmrManagedSlaveSecurityGroup:
-    Type: String
-    AllowedPattern: "sg-[a-f0-9]+"
-    Description: Security group for EMR workers
-
-  AdditionalEmrSecurityGroup:
-    Type: String
-    AllowedPattern: "sg-[a-f0-9]+"
-    Description: Additional security group to attach to EMR clusters
 
   # For more infomration about EMR IAM roles: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html
   EmrServiceRole:
@@ -39,6 +23,11 @@ Parameters:
     Type: String
     Default: "EMR_AutoScaling_DefaultRole"
     Description: Autoscaling role for EMR clusters
+
+Conditions:
+  UseVpcStackCreatedSubnet: !Equals
+    - !Ref EmrEc2SubnetId
+    - ""
 
 Resources:
   EmrEc2Role:
@@ -155,13 +144,9 @@ Resources:
     Properties:
       DefinitionUri: ../src/stepfunctions/full_load.json
       DefinitionSubstitutions:
-        #/da-black-belt-2021/cicd/artifact_bucket/prefix_uri
         ArtifactPrefixUri: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/cicd/artifact_bucket/prefix_uri', '}}' ] ]
-        AdditionalEmrSecurityGroup: !Ref AdditionalEmrSecurityGroup
-        EmrEc2SubnetId: !Ref EmrEc2SubnetId
-        EmrManagedMasterSecurityGroup: !Ref EmrManagedMasterSecurityGroup
-        EmrManagedSlaveSecurityGroup: !Ref EmrManagedSlaveSecurityGroup
-        EmrLogUri: !Sub 's3n://aws-logs-${AWS::AccountId}-${AWS::Region}/elasticmapreduce/'
+        EmrEc2SubnetId: !If [ UseVpcStackCreatedSubnet, !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/a/id}}', !Ref EmrEc2SubnetId ]
+        EmrLogUri: !Sub 's3n://aws-logs-${AWS::AccountId}-${AWS::Region}/elasticmapreduce/${ParentStack}/'
         EmrServiceRole: !Ref EmrServiceRole
         EmrJobFlowRole: !Ref EmrEc2InstanceProfile
         EmrAutoScalingRole: !Ref EmrAutoScalingRole
