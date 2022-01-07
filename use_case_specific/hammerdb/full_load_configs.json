@@ -19,49 +19,49 @@
     },
     {
         "primary_key": "c_w_id,c_d_id,c_id",
-        "watermark": "c_since",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.customer",
         "identifier": "hammerdb"
     },
     {
         "primary_key": "d_w_id,d_id",
-        "watermark": "d_ytd",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.district",
         "identifier": "hammerdb"
     },
     {
         "primary_key": "i_id",
-        "watermark": "i_im_id",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.item",
         "identifier": "hammerdb"
     },
     {
         "primary_key": "no_w_id, no_d_id, no_o_id",
-        "watermark": "no_o_id",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.new_order",
         "identifier": "hammerdb"
     },
     {
         "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
-        "watermark": "ol_number",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.order_line",
         "identifier": "hammerdb"
     },
     {
         "primary_key": "o_w_id, o_d_id, o_id",
-        "watermark": "o_entry_d",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.orders",
         "identifier": "hammerdb"
     },
     {
         "primary_key": "s_i_id,s_w_id",
-        "watermark": "s_ytd",
+        "watermark": "trx_seq",
         "is_partitioned": false,
         "config": "table::public.stock",
         "identifier": "hammerdb"

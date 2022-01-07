@@ -17,7 +17,7 @@ def get_hudi_options(table_name, database_name, table_config, operation):
     if operation == 'FULL':
         hudi_options['hoodie.datasource.write.operation'] = 'bulk_insert'
         # TODO: Figure out sorting options, in testing, sorting took a very very long time
-        hudi_options['hoodie.bulkinsert.sort.mode'] = 'NONE'
+        hudi_options['hoodie.bulkinsert.sort.mode'] = 'PARTITION_SORT'
     else:
         raise ValueError(f'Operation {operation} not yet supported.')
 

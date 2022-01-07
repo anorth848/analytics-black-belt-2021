@@ -135,3 +135,14 @@ Resources:
       Name: !Sub '/${ParentStack}/lake/prefix_uri'
       Type: String
       Value: !Join ['', ['s3://', !Ref LakeBucket, '/', !Ref GlueDatabase]]
+
+  LakeFormationLocationRoleParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: LakeFormation IAM role
+      Name: !Sub '/${ParentStack}/lake/iam/lf/role_id'
+      Type: String
+      Value: !GetAtt LakeFormationLocationRole.RoleId
+
+
+

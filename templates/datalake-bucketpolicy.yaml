@@ -27,3 +27,7 @@ Resources:
             Condition:
               StringNotEquals:
                 aws:SourceVpce: !Sub '{{resolve:ssm:/${ParentStack}/network/vpce/datalake/id}}'
+              StringNotLike:
+                aws:userid:
+                  - !Sub '{{resolve:ssm:/${ParentStack}/lake/iam/lf/role_id}}:*'
+                  - !Sub '${AWS::AccountId}'
