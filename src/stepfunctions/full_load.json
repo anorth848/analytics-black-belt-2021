@@ -24,7 +24,6 @@
                 ],
                 "ServiceRole": "${EmrServiceRole}",
                 "JobFlowRole": "${EmrJobFlowRole}",
-                "AutoScalingRole": "${EmrAutoScalingRole}",
                 "LogUri": "${EmrLogUri}",
                 "StepConcurrencyLevel.$": "$.emr.step_parallelism",
                 "BootstrapActions": [
@@ -37,42 +36,52 @@
                     }
                 ],
                 "Instances": {
-                    "Ec2SubnetId": "${EmrEc2SubnetId}",
+                    "Ec2SubnetIds.$": "States.Array('${EmrEc2SubnetIdA}', '${EmrEc2SubnetIdB}')",
                     "KeepJobFlowAliveWhenNoSteps": true,
-                    "InstanceGroups": [
+                    "InstanceFleets": [
                         {
-                            "InstanceCount":1,
-                            "EbsConfiguration":{
-                                "EbsBlockDeviceConfigs":[
-                                    {
-                                        "VolumeSpecification":{
-                                            "SizeInGB":32,
-                                            "VolumeType":"gp2"
-                                        },
-                                        "VolumesPerInstance":2
-                                    }
-                                ]
-                            },
-                            "InstanceRole":"MASTER",
-                            "InstanceType.$":"$.emr.master.instance_type",
-                            "Name":"Master - 1"
+                            "InstanceFleetType": "MASTER",
+                            "InstanceTypeConfigs": [
+                                {
+                                    "EbsConfiguration": {
+                                        "EbsBlockDeviceConfigs": [
+                                            {
+                                                "VolumeSpecification": {
+                                                    "SizeInGB": 32,
+                                                    "VolumeType": "gp2"
+                                                },
+                                                "VolumesPerInstance": 2
+                                            }
+                                        ]
+                                    },
+                                    "InstanceType.$": "$.emr.master.instance_type",
+                                    "WeightedCapacity": 1
+                                }
+                            ],
+                            "Name": "master-fleet",
+                            "TargetOnDemandCapacity": 1
                         },
                         {
-                            "InstanceCount.$":"$.emr.worker.count",
-                            "EbsConfiguration":{
-                                "EbsBlockDeviceConfigs":[
-                                    {
-                                        "VolumeSpecification":{
-                                            "SizeInGB":32,
-                                            "VolumeType":"gp2"
-                                        },
-                                        "VolumesPerInstance":1
-                                    }
-                                ]
-                            },
-                            "InstanceRole":"CORE",
-                            "InstanceType.$":"$.emr.worker.instance_type",
-                            "Name":"Core - 2"
+                            "InstanceFleetType": "CORE",
+                            "InstanceTypeConfigs": [
+                                {
+                                    "EbsConfiguration": {
+                                        "EbsBlockDeviceConfigs": [
+                                            {
+                                                "VolumeSpecification": {
+                                                    "SizeInGB": 100,
+                                                    "VolumeType": "gp2"
+                                                },
+                                                "VolumesPerInstance": 2
+                                            }
+                                        ]
+                                    },
+                                    "InstanceType.$": "$.emr.worker.instance_type",
+                                    "WeightedCapacity": 1
+                                }
+                            ],
+                            "Name": "core-fleet",
+                            "TargetOnDemandCapacity.$": "$.emr.worker.count"
                         }
                     ]
                 },

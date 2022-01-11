@@ -8,26 +8,21 @@ Parameters:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
-  EmrEc2SubnetId:
-    Type: String
-    Default: ""
-    Description: Subnet EMR clusters will run in
-
   # For more infomration about EMR IAM roles: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html
   EmrServiceRole:
     Type: String
     Default: "EMR_DefaultRole"
     Description: Service role for EMR clusters
 
-  EmrAutoScalingRole:
+  CreateLambdaInVpc:
     Type: String
-    Default: "EMR_AutoScaling_DefaultRole"
-    Description: Autoscaling role for EMR clusters
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'TRUE'
 
 Conditions:
-  UseVpcStackCreatedSubnet: !Equals
-    - !Ref EmrEc2SubnetId
-    - ""
+  CreateLambdaInVpc: !Equals
+    - !Ref CreateLambdaInVpc
+    - 'TRUE'
 
 Resources:
   EmrEc2Role:
@@ -145,11 +140,11 @@ Resources:
       DefinitionUri: ../src/stepfunctions/full_load.json
       DefinitionSubstitutions:
         ArtifactPrefixUri: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/cicd/artifact_bucket/prefix_uri', '}}' ] ]
-        EmrEc2SubnetId: !If [ UseVpcStackCreatedSubnet, !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/a/id}}', !Ref EmrEc2SubnetId ]
+        EmrEc2SubnetIdA: !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/a/id}}'
+        EmrEc2SubnetIdB: !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/b/id}}'
         EmrLogUri: !Sub 's3n://aws-logs-${AWS::AccountId}-${AWS::Region}/elasticmapreduce/${ParentStack}/'
         EmrServiceRole: !Ref EmrServiceRole
         EmrJobFlowRole: !Ref EmrEc2InstanceProfile
-        EmrAutoScalingRole: !Ref EmrAutoScalingRole
       Role: !GetAtt FullLoadStepFunctionRole.Arn
       Type: STANDARD
 
@@ -165,7 +160,10 @@ Resources:
             Action: [ "sts:AssumeRole" ]
       Description: Role for full load state machine
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !If [ CreateLambdaInVpc,
+            arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole,
+            arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          ]
       Policies:
         - PolicyName: LaunchPolicy
           PolicyDocument:
@@ -201,6 +199,7 @@ Resources:
 
   LaunchFullLoadLambdaFunction:
     Type: AWS::Serverless::Function
+    DependsOn: LaunchFullLoadLambdaRole
     Properties:
       CodeUri: ../src/lambdas/launch_full_load/
       Description: Lambda Function for launching the Full Load step function
@@ -214,6 +213,25 @@ Resources:
       Role: !GetAtt LaunchFullLoadLambdaRole.Arn
       Runtime: python3.9
       Timeout: 60
+      # If VPC was created as part of this deployment, create the lambda in vpc, otherwise omit vpc settings
+      VpcConfig:
+        SecurityGroupIds: [ !If [
+            CreateLambdaInVpc,
+            !Sub '{{resolve:ssm:/${ParentStack}/network/vpc/defaultsg}}',
+            !Ref AWS::NoValue
+        ]]
+        SubnetIds: [
+          !If [
+            CreateLambdaInVpc,
+            !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/a/id}}',
+            !Ref AWS::NoValue
+          ],
+          !If [
+            CreateLambdaInVpc,
+            !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/b/id}}',
+            !Ref AWS::NoValue
+          ]
+        ]
 
   LaunchFullLoadLambdaArnParameter:
     Type: AWS::SSM::Parameter

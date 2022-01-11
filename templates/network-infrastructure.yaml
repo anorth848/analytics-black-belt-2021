@@ -1,7 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  All networking related components for the project
+  This stack either:
+  1 - creates all networking related components for the project (CreateNetworkInfrastructure=TRUE)
+  or
+  2 - it simply adds the user-supplied subnets to the SSM parameter store to be used downstream
+    *NOTE*: If you choose this option (CreateNetworkInfrastructure=FALSE), it is assumed that all networking related
+    resources will be handled external to this installation
 
 Parameters:
   ParentStack:
@@ -13,13 +18,40 @@ Parameters:
     Default: hammerdb
     AllowedPattern: "[a-z_]+"
 
+  CreateNetworkInfrastructure:
+    Type: String
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'FALSE'
+
+  VpcCidrBlock:
+    Type: String
+    Default: '10.0.0.0/16'
+    Description: CIDR Block for the new VPC.
+
+  VpcSubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: >
+      Comma deliminted list of two existing private subnets you want this infrastructure to run in.
+      Leave as NONE to have this stack create them.
+
+  VpcSubnetIpBlocks:
+    Type: CommaDelimitedList
+    Default:  ""
+    Description: Comma deliminted list of four Cidr ranges. Only relevant if VpcSubnetIds is set to CREATE
+
+Conditions:
+  CreateNetworkInfrastructure: !Equals [ !Ref CreateNetworkInfrastructure, 'TRUE' ]
+
+
 Resources:
   VPC:
     Type: "AWS::EC2::VPC"
+    Condition: CreateNetworkInfrastructure
     Properties:
       EnableDnsSupport: "true"
       EnableDnsHostnames: "true"
-      CidrBlock: '10.0.0.0/16'
+      CidrBlock: !Ref VpcCidrBlock
       Tags:
         - Key: "Application"
           Value: !Ref ParentStack
@@ -30,10 +62,11 @@ Resources:
 
   PrivateSubnetA:
     Type: "AWS::EC2::Subnet"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Sub "${AWS::Region}a"
-      CidrBlock: "10.0.0.0/24"
+      CidrBlock: !Select [ 0, !Ref VpcSubnetIpBlocks ]
       Tags:
         - Key: "Application"
           Value: !Ref ParentStack
@@ -44,10 +77,11 @@ Resources:
 
   PrivateSubnetB:
     Type: "AWS::EC2::Subnet"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Sub "${AWS::Region}b"
-      CidrBlock: "10.0.1.0/24"
+      CidrBlock: !Select [ 1, !Ref VpcSubnetIpBlocks ]
       Tags:
         - Key: "Application"
           Value: !Ref ParentStack
@@ -58,10 +92,11 @@ Resources:
 
   PublicSubnetA:
     Type: "AWS::EC2::Subnet"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Sub "${AWS::Region}a"
-      CidrBlock: "10.0.2.0/24"
+      CidrBlock: !Select [ 2, !Ref VpcSubnetIpBlocks ]
       MapPublicIpOnLaunch: "true"
       Tags:
         - Key: "Application"
@@ -73,10 +108,11 @@ Resources:
 
   PublicSubnetB:
     Type: "AWS::EC2::Subnet"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Sub "${AWS::Region}b"
-      CidrBlock: "10.0.3.0/24"
+      CidrBlock: !Select [ 3, !Ref VpcSubnetIpBlocks ]
       MapPublicIpOnLaunch: "true"
       Tags:
         - Key: "Application"
@@ -88,6 +124,7 @@ Resources:
 
   InternetGateway:
     Type: "AWS::EC2::InternetGateway"
+    Condition: CreateNetworkInfrastructure
     Properties:
       Tags:
         - Key: "Application"
@@ -99,12 +136,14 @@ Resources:
 
   GatewayToInternet:
     Type: "AWS::EC2::VPCGatewayAttachment"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
 
   PublicRouteTable:
     Type: "AWS::EC2::RouteTable"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       Tags:
@@ -117,6 +156,7 @@ Resources:
 
   PublicRoute:
     Type: "AWS::EC2::Route"
+    Condition: CreateNetworkInfrastructure
     DependsOn: GatewayToInternet
     Properties:
       RouteTableId: !Ref PublicRouteTable
@@ -125,18 +165,21 @@ Resources:
 
   PublicSubnetRouteTableAssociationA:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Condition: CreateNetworkInfrastructure
     Properties:
       SubnetId: !Ref PublicSubnetA
       RouteTableId: !Ref PublicRouteTable
 
   PublicSubnetRouteTableAssociationB:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Condition: CreateNetworkInfrastructure
     Properties:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref PublicRouteTable
 
   PublicNetworkAcl:
     Type: "AWS::EC2::NetworkAcl"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       Tags:
@@ -149,6 +192,7 @@ Resources:
 
   InboundHTTPPublicNetworkAclEntry:
     Type: "AWS::EC2::NetworkAclEntry"
+    Condition: CreateNetworkInfrastructure
     Properties:
       NetworkAclId: !Ref PublicNetworkAcl
       RuleNumber: "100"
@@ -162,6 +206,7 @@ Resources:
 
   OutboundPublicNetworkAclEntry:
     Type: "AWS::EC2::NetworkAclEntry"
+    Condition: CreateNetworkInfrastructure
     Properties:
       NetworkAclId: !Ref PublicNetworkAcl
       RuleNumber: "100"
@@ -175,11 +220,13 @@ Resources:
 
   PublicSubnetNetworkAclAssociationA:
     Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Condition: CreateNetworkInfrastructure
     Properties:
       SubnetId: !Ref PublicSubnetA
       NetworkAclId: !Ref PublicNetworkAcl
 
   PublicSubnetNetworkAclAssociationB:
+    Condition: CreateNetworkInfrastructure
     Type: "AWS::EC2::SubnetNetworkAclAssociation"
     Properties:
       SubnetId: !Ref PublicSubnetB
@@ -187,28 +234,33 @@ Resources:
 
   ElasticIPA:
     Type: "AWS::EC2::EIP"
+    Condition: CreateNetworkInfrastructure
     Properties:
       Domain: "vpc"
 
   ElasticIPB:
     Type: "AWS::EC2::EIP"
+    Condition: CreateNetworkInfrastructure
     Properties:
       Domain: "vpc"
 
   NATGatewayA:
     Type: "AWS::EC2::NatGateway"
+    Condition: CreateNetworkInfrastructure
     Properties:
       AllocationId: !GetAtt ElasticIPA.AllocationId
       SubnetId: !Ref PublicSubnetA
 
   NATGatewayB:
     Type: "AWS::EC2::NatGateway"
+    Condition: CreateNetworkInfrastructure
     Properties:
       AllocationId: !GetAtt ElasticIPB.AllocationId
       SubnetId: !Ref PublicSubnetB
 
   PrivateRouteTableA:
     Type: "AWS::EC2::RouteTable"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       Tags:
@@ -217,6 +269,7 @@ Resources:
 
   PrivateRouteTableB:
     Type: "AWS::EC2::RouteTable"
+    Condition: CreateNetworkInfrastructure
     Properties:
       VpcId: !Ref VPC
       Tags:
@@ -225,6 +278,7 @@ Resources:
 
   PrivateRouteToInternetA:
     Type: "AWS::EC2::Route"
+    Condition: CreateNetworkInfrastructure
     Properties:
       RouteTableId: !Ref PrivateRouteTableA
       DestinationCidrBlock: "0.0.0.0/0"
@@ -232,6 +286,7 @@ Resources:
 
   PrivateRouteToInternetB:
     Type: "AWS::EC2::Route"
+    Condition: CreateNetworkInfrastructure
     Properties:
       RouteTableId: !Ref PrivateRouteTableB
       DestinationCidrBlock: "0.0.0.0/0"
@@ -239,18 +294,21 @@ Resources:
 
   PrivateSubnetRouteTableAssociationA:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Condition: CreateNetworkInfrastructure
     Properties:
       SubnetId: !Ref PrivateSubnetA
       RouteTableId: !Ref PrivateRouteTableA
 
   PrivateSubnetRouteTableAssociationB:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Condition: CreateNetworkInfrastructure
     Properties:
       SubnetId: !Ref PrivateSubnetB
       RouteTableId: !Ref PrivateRouteTableB
 
   DataLakeEndpoint:
     Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
     Properties:
       RouteTableIds:
         - !Ref PublicRouteTable
@@ -260,8 +318,105 @@ Resources:
       VpcEndpointType: Gateway
       VpcId: !Ref VPC
 
+  DynamoDbEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTableA
+        - !Ref PrivateRouteTableB
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+      VpcId: !Ref VPC
+
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      GroupDescription: Allow incoming requests from private subnets
+      GroupName: "Internal VPC Endpoints"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow outbound"
+      SecurityGroupIngress:
+        - CidrIp: !Select [ 0, !Ref VpcSubnetIpBlocks ]
+          IpProtocol: -1
+          Description: "Allow inbound from private subnet a"
+        - CidrIp: !Select [ 1, !Ref VpcSubnetIpBlocks ]
+          IpProtocol: -1
+          Description: "Allow inbound from private subnet b"
+      VpcId: !Ref VPC
+
+  GlueEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.glue'
+      SecurityGroupIds: [ !Ref VpcEndpointSecurityGroup ]
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: TRUE
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      VpcId: !Ref VPC
+
+  LakeFormationEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.lakeformation'
+      SecurityGroupIds: [ !Ref VpcEndpointSecurityGroup ]
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: TRUE
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      VpcId: !Ref VPC
+
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      SecurityGroupIds: [ !Ref VpcEndpointSecurityGroup ]
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: TRUE
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      VpcId: !Ref VPC
+
+  StepFunctionsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.states'
+      SecurityGroupIds: [ !Ref VpcEndpointSecurityGroup ]
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: TRUE
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      VpcId: !Ref VPC
+
+  DmsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dms'
+      SecurityGroupIds: [ !Ref VpcEndpointSecurityGroup ]
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: TRUE
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      VpcId: !Ref VPC
+
   RdbmsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Condition: CreateNetworkInfrastructure
     Properties:
       GroupDescription: Allow connections to postgres from private subnets. Manually attach to source RDS Instance.
       GroupName: "Internal Postgres"
@@ -270,11 +425,11 @@ Resources:
           CidrIp: "0.0.0.0/0"
           Description: "Allow outbound"
       SecurityGroupIngress:
-        - CidrIp: "10.0.0.0/24"
+        - CidrIp: !Select [ 0, !Ref VpcSubnetIpBlocks ]
           FromPort: 5432
           ToPort: 5432
           IpProtocol: tcp
-        - CidrIp: "10.0.1.0/24"
+        - CidrIp: !Select [ 1, !Ref VpcSubnetIpBlocks ]
           FromPort: 5432
           ToPort: 5432
           IpProtocol: tcp
@@ -282,11 +437,21 @@ Resources:
 
   VpcIdParameter:
     Type: AWS::SSM::Parameter
+    Condition: CreateNetworkInfrastructure
     Properties:
       Description: Runtime VPC ID
       Name: !Sub '/${ParentStack}/network/vpc/id'
       Type: String
       Value: !Ref VPC
+
+  VpcDefaultSgParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateNetworkInfrastructure
+    Properties:
+      Description: Runtime VPC ID
+      Name: !Sub '/${ParentStack}/network/vpc/defaultsg'
+      Type: String
+      Value: !GetAtt VPC.DefaultSecurityGroup
 
   SubnetIdAParameter:
     Type: AWS::SSM::Parameter
@@ -294,7 +459,7 @@ Resources:
       Description: Runtime Subnet A
       Name: !Sub '/${ParentStack}/network/subnet/a/id'
       Type: String
-      Value: !Ref PrivateSubnetA
+      Value: !If [ CreateNetworkInfrastructure, !Ref PrivateSubnetA, !Select [ 0, !Ref VpcSubnetIds ] ]
 
   SubnetIdBParameter:
     Type: AWS::SSM::Parameter
@@ -302,10 +467,11 @@ Resources:
       Description: Runtime Subnet B
       Name: !Sub '/${ParentStack}/network/subnet/b/id'
       Type: String
-      Value: !Ref PrivateSubnetB
+      Value: !If [ CreateNetworkInfrastructure, !Ref PrivateSubnetB, !Select [ 1, !Ref VpcSubnetIds ] ]
 
   DataLakeEndpointParameter:
     Type: AWS::SSM::Parameter
+    Condition: CreateNetworkInfrastructure
     Properties:
       Description: DataLake S3 VPC Endpoint ID
       Name: !Sub '/${ParentStack}/network/vpce/datalake/id'

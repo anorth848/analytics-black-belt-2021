@@ -10,38 +10,95 @@ Parameters:
     AllowedPattern: "[a-z_]+"
     Description: The use case. This will be used for naming resources throughout nested stacks.
 
-  EmrEc2SubnetId:
+  CreateNetworkInfrastructure:
     Type: String
-    AllowedPattern: "subnet-[a-f0-9]+"
-    Description: Subnet EMR clusters will run in
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'TRUE'
+
+  VpcSubnetIds:
+    Type: String
+    Description: >
+      Comma separated list of two existing private subnets this stack will run in.
+      Ignored if CreateNetworkInfrastructure is set to TRUE
+    Default: ""
+
+  VpcSubnetIpBlocks:
+    Type: String
+    Description: Comma deliminted list of four Cidr ranges. Only relevant if VpcSubnetIds is set to CREATE
+    Default: "10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24"
 
   CreateQuickSightInfrastructure:
-    Type: String
-    AllowedValues: ['TRUE', 'FALSE']
-    Default: 'FALSE'
-
-  CreateNetworkInfrastructure:
     Type: String
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'FALSE'
 
+  CreateDmsVpcRole:
+    #  If DMS has not been previously used in this account, you will need to create the dms-vpc-role or DMS resources in this stack will fail
+    #  With error: The IAM Role arn:aws:iam::${AccountId}:role/dms-vpc-role is not configured properly.
+    #  This can be done through the GUI by manually configuring a Subnet group, or
+    #  by setting this parameter to TRUE. If the role already exists, set this to FALSE or omit to default FALSE
+    Type: String
+    Description: Whether or not to create the DMS VPC Role
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'FALSE'
+
+  CreateDmsInfrastructure:
+    #  Recommended to set this to TRUE and update the stack *AFTER* initial installation,
+    #  and after you've configured the secrets in SecretsStack
+    Type: String
+    AllowedValues: [ 'TRUE', 'FALSE' ]
+    Default: 'FALSE'
+    Description: Control whether or not to create the AWS DMS Infrastructure
+
+  RdsCertificatePem:
+    #  Default to the rds global bundle
+    #  https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+    #  openssl x509 -in global-bundle.pem -text
+    Type: String
+    Description: RDS Root CA Certificate pem
+    AllowedPattern: "-----BEGIN CERTIFICATE-----([A-Za-z0-9+/\\r\\n+=]+)-----END CERTIFICATE-----"
+    Default: |-
+      -----BEGIN CERTIFICATE-----
+      MIIEEjCCAvqgAwIBAgIJAM2ZN/+nPi27MA0GCSqGSIb3DQEBCwUAMIGVMQswCQYD
+      VQQGEwJVUzEQMA4GA1UEBwwHU2VhdHRsZTETMBEGA1UECAwKV2FzaGluZ3RvbjEi
+      MCAGA1UECgwZQW1hem9uIFdlYiBTZXJ2aWNlcywgSW5jLjETMBEGA1UECwwKQW1h
+      em9uIFJEUzEmMCQGA1UEAwwdQW1hem9uIFJEUyBhZi1zb3V0aC0xIFJvb3QgQ0Ew
+      HhcNMTkxMDI4MTgwNTU4WhcNMjQxMDI2MTgwNTU4WjCBlTELMAkGA1UEBhMCVVMx
+      EDAOBgNVBAcMB1NlYXR0bGUxEzARBgNVBAgMCldhc2hpbmd0b24xIjAgBgNVBAoM
+      GUFtYXpvbiBXZWIgU2VydmljZXMsIEluYy4xEzARBgNVBAsMCkFtYXpvbiBSRFMx
+      JjAkBgNVBAMMHUFtYXpvbiBSRFMgYWYtc291dGgtMSBSb290IENBMIIBIjANBgkq
+      hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwR2351uPMZaJk2gMGT+1sk8HE9MQh2rc
+      /sCnbxGn2p1c7Oi9aBbd/GiFijeJb2BXvHU+TOq3d3Jjqepq8tapXVt4ojbTJNyC
+      J5E7r7KjTktKdLxtBE1MK25aY+IRJjtdU6vG3KiPKUT1naO3xs3yt0F76WVuFivd
+      9OHv2a+KHvPkRUWIxpmAHuMY9SIIMmEZtVE7YZGx5ah0iO4JzItHcbVR0y0PBH55
+      arpFBddpIVHCacp1FUPxSEWkOpI7q0AaU4xfX0fe1BV5HZYRKpBOIp1TtZWvJD+X
+      jGUtL1BEsT5vN5g9MkqdtYrC+3SNpAk4VtpvJrdjraI/hhvfeXNnAwIDAQABo2Mw
+      YTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUEEi/
+      WWMcBJsoGXg+EZwkQ0MscZQwHwYDVR0jBBgwFoAUEEi/WWMcBJsoGXg+EZwkQ0Ms
+      cZQwDQYJKoZIhvcNAQELBQADggEBAGDZ5js5Pc/gC58LJrwMPXFhJDBS8QuDm23C
+      FFUdlqucskwOS3907ErK1ZkmVJCIqFLArHqskFXMAkRZ2PNR7RjWLqBs+0znG5yH
+      hRKb4DXzhUFQ18UBRcvT6V6zN97HTRsEEaNhM/7k8YLe7P8vfNZ28VIoJIGGgv9D
+      wQBBvkxQ71oOmAG0AwaGD0ORGUfbYry9Dz4a4IcUsZyRWRMADixgrFv6VuETp26s
+      /+z+iqNaGWlELBKh3iQCT6Y/1UnkPLO42bxrCSyOvshdkYN58Q2gMTE1SVTqyo8G
+      Lw8lLAz9bnvUSgHzB3jRrSx6ggF/WRMRYlR++y6LXP4SAsSAaC0=
+      -----END CERTIFICATE-----
+
 Conditions:
-  CreateQuickSightInfrastructure: !Equals
-    - !Ref CreateQuickSightInfrastructure
-    - 'TRUE'
-  CreateNetworkInfrastructure: !Equals
-    - !Ref CreateNetworkInfrastructure
-    - 'TRUE'
+  CreateQuickSightInfrastructure: !Equals [ !Ref CreateQuickSightInfrastructure, 'TRUE' ]
+  CreateNetworkInfrastructure: !Equals [ !Ref CreateNetworkInfrastructure, 'TRUE' ]
+  CreateDmsInfrastructure: !Equals [ !Ref CreateDmsInfrastructure, 'TRUE' ]
 
 Resources:
   NetworkInfrastructureStack:
     Type: AWS::Serverless::Application
-    Condition: CreateNetworkInfrastructure
     Properties:
       Location: templates/network-infrastructure.yaml
       Parameters:
         UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
+        VpcSubnetIds: !If [ CreateNetworkInfrastructure, 'NONE', !Ref VpcSubnetIds ]
+        CreateNetworkInfrastructure: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
+        VpcSubnetIpBlocks: !If [ CreateNetworkInfrastructure, !Ref VpcSubnetIpBlocks, '' ]
 
   DataLakeStack:
     Type: AWS::Serverless::Application
@@ -73,25 +130,35 @@ Resources:
       Location: templates/runtime-infrastructure.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
-        UseCase: !Ref UseCase
-        CreateNetworkInfrastructure: !Ref CreateNetworkInfrastructure
+        CreateDmsVpcRole: !Ref CreateDmsVpcRole
 
   SecretsStack:
     Type: AWS::Serverless::Application
     Properties:
       Location: templates/secrets.yaml
       Parameters:
-        SecretName: !Ref UseCase
+        UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
 
   FullPipelineStack:
     Type: AWS::Serverless::Application
-    DependsOn: [ RuntimeInfrastructureStack, CicdInfrastructureStack, DataLakeStack ]
+    DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, CicdInfrastructureStack, DataLakeStack ]
     Properties:
       Location: templates/full-pipeline.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
-        EmrEc2SubnetId: !If [ CreateNetworkInfrastructure, "", !Ref EmrEc2SubnetId ]
+        CreateLambdaInVpc: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
+
+  DmsInfrastructureStack:
+    Type: AWS::Serverless::Application
+    DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, SecretsStack ]
+    Condition: CreateDmsInfrastructure
+    Properties:
+      Location: templates/dms-infrastructure.yaml
+      Parameters:
+        UseCase: !Ref UseCase
+        ParentStack: !Ref AWS::StackName
+        RdsCertificatePem: !Ref RdsCertificatePem
 
   #  This stack assumes you've enabled QuickSight in this account and have access from your IAM credentials
   #  and Parameter CreateQuickSightInfrastructure set to 'TRUE'

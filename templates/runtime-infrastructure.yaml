@@ -8,20 +8,14 @@ Parameters:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
-  UseCase:
+  CreateDmsVpcRole:
     Type: String
-    Default: hammerdb
-    AllowedPattern: "[a-z_]+"
-
-  CreateNetworkInfrastructure:
-    Type: String
+    Description: Whether or not to create the DMS VPC Role
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'FALSE'
 
 Conditions:
-  CreateNetworkInfrastructure: !Equals
-    - !Ref CreateNetworkInfrastructure
-    - 'TRUE'
+  CreateDmsVpcRole: !Equals [ !Ref CreateDmsVpcRole, 'TRUE' ]
 
 Resources:
   SourceConfigTable:
@@ -69,6 +63,32 @@ Resources:
           - ObjectOwnership: BucketOwnerPreferred
       VersioningConfiguration:
         Status: Enabled
+
+  #  If DMS has not been previously used in this account, you will need to create the dms-vpc-role or DMS resources in this stack will fail
+  #  With error: The IAM Role arn:aws:iam::831275422924:role/dms-vpc-role is not configured properly.
+  #  This can be done through the GUI by manually configuring a Subnet group, or
+  #  by Parameter CreateDmsVpcRole=TRUE in template runtime-infrastructure.yaml. If the role already exists, just set this to FALSE
+  DmsVpcRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Retain
+    Condition: CreateDmsVpcRole
+    Properties:
+      RoleName: dms-vpc-role
+      AssumeRolePolicyDocument: {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "dms.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          }
+        ]
+      }
+      Description: VPC Service role for DMS
+      ManagedPolicyArns:
+        - !Sub 'arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole'
 
   SourceConfigTableNameParameter:
     Type: AWS::SSM::Parameter

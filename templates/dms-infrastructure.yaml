@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Infrastructure components required for AWS DMS
+
+Parameters:
+  ParentStack:
+    Type: String
+    Description: Parent stack this template was launched from, used for naming SSM parameters
+
+  RdsCertificatePem:
+    Type: String
+    Description: RDS Root CA Certificate pem (base 64)
+
+  UseCase:
+    Type: String
+    Default: hammerdb
+    AllowedPattern: "[a-z_]+"
+
+
+Resources:
+  #  If DMS has not been previously used in this account, you will need to create the dms-vpc-role or DMS resources in this stack will fail
+  #  With error: The IAM Role arn:aws:iam::${AccountId}:role/dms-vpc-role is not configured properly.
+  #  This can be done through the GUI by manually configuring a Subnet group, or
+  #  by Parameter CreateDmsVpcRole=TRUE in template runtime-infrastructure.yaml. If the role already exists, just set this to FALSE
+  DmsSubnetGroup:
+    Type: AWS::DMS::ReplicationSubnetGroup
+    Properties:
+      ReplicationSubnetGroupDescription: Replication group for private subnets A and B
+      SubnetIds:
+        - !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/a/id}}'
+        - !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/b/id}}'
+
+  RdsCertificate:
+    Type: AWS::DMS::Certificate
+    Properties:
+      CertificateIdentifier: !Sub '${AWS::StackName}-rds-bundle-pem'
+      CertificatePem: !Ref RdsCertificatePem
+
+  DmsRdsEndpoint:
+    # '{{resolve:secretsmanager:MySecret:SecretString:password:EXAMPLE1-90ab-cdef-fedc-ba987EXAMPLE}}'
+    Type: AWS::DMS::Endpoint
+    Properties:
+      CertificateArn: !Ref RdsCertificate
+      DatabaseName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:dbname}}'
+      EndpointType: source
+      EngineName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:engine}}'
+      ExtraConnectionAttributes: 'captureDDLs=N;pluginName=pglogical;heartbeatEnable=true;heartbeatSchema=awsdms;'
+      Password: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:password}}'
+      Port: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:port}}'
+      ServerName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:host}}'
+      SslMode: verify-ca
+      Username: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:username}}'
+
+  RdsCertificateArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: DMS VPC Endpoint ID
+      Name: !Sub '/${ParentStack}/dms/rds_cert/arn'
+      Type: String
+      Value: !Ref RdsCertificate
+
+  DmsSubnetGroupNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: DMS VPC Endpoint ID
+      Name: !Sub '/${ParentStack}/dms/subnet_group/name'
+      Type: String
+      Value: !Ref DmsSubnetGroup
