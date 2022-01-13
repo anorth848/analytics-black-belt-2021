@@ -1,6 +1,6 @@
 [
     {
-        "secret": "da-black-belt-2021/rdbms/hammerdb",
+        "secret": "da-black-belt-2021/rdbms/rds/primary/spark",
         "target_db_name": "hammerdb",
         "config": "database::config",
         "identifier": "hammerdb"
@@ -65,5 +65,30 @@
         "is_partitioned": false,
         "config": "table::public.stock",
         "identifier": "hammerdb"
+    },
+        {
+        "secret": "da-black-belt-2021/rdbms/hammerdb-fail",
+        "target_db_name": "hammerdb",
+        "config": "database::config",
+        "identifier": "hammerdb-fail"
+    },
+    {
+        "master": {
+            "instance_type": "m5.xlarge"
+        },
+        "step_parallelism": 1,
+        "config": "emr::config::full_load",
+        "identifier": "hammerdb-fail",
+        "worker": {
+            "count": 1,
+            "instance_type": "m5.2xlarge"
+        }
+    },
+        {
+        "primary_key": "d_w_id,d_id",
+        "watermark": "trx_seq",
+        "is_partitioned": false,
+        "config": "table::public.district",
+        "identifier": "hammerdb-fail"
     }
 ]

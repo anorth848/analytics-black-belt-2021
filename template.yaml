@@ -6,7 +6,6 @@ Description: >
 Parameters:
   UseCase:
     Type: String
-    Default: hammerdb
     AllowedPattern: "[a-z_]+"
     Description: The use case. This will be used for naming resources throughout nested stacks.
 
@@ -49,6 +48,11 @@ Parameters:
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'FALSE'
     Description: Control whether or not to create the AWS DMS Infrastructure
+
+  OpsEmailAddress:
+    Type: String
+    Description: The Operations team email address for notifications
+    AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
 
   RdsCertificatePem:
     #  Default to the rds global bundle
@@ -131,6 +135,7 @@ Resources:
       Parameters:
         ParentStack: !Ref AWS::StackName
         CreateDmsVpcRole: !Ref CreateDmsVpcRole
+        OpsEmailAddress: !Ref OpsEmailAddress
 
   SecretsStack:
     Type: AWS::Serverless::Application

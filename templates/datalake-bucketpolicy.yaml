@@ -9,10 +9,10 @@ Parameters:
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
 Resources:
-  LakeBucketPolicy:
+  SilverLakeBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/name}}'
+      Bucket: !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/silver/name}}'
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -23,7 +23,30 @@ Resources:
               - "s3:PutObject*"
             Effect: "Deny"
             Resource:
-              - !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/arn}}/*'
+              - !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/silver/arn}}/*'
+            Condition:
+              StringNotEquals:
+                aws:SourceVpce: !Sub '{{resolve:ssm:/${ParentStack}/network/vpce/datalake/id}}'
+              StringNotLike:
+                aws:userid:
+                  - !Sub '{{resolve:ssm:/${ParentStack}/lake/iam/lf/role_id}}:*'
+                  - !Sub '${AWS::AccountId}'
+
+  BronzeLakeBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/bronze/name}}'
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: "Data-access-to-specific-VPCE"
+            Principal: "*"
+            Action:
+              - "s3:GetObject*"
+              - "s3:PutObject*"
+            Effect: "Deny"
+            Resource:
+              - !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/bronze/arn}}/*'
             Condition:
               StringNotEquals:
                 aws:SourceVpce: !Sub '{{resolve:ssm:/${ParentStack}/network/vpce/datalake/id}}'

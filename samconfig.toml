@@ -14,11 +14,12 @@
  confirm_changeset = true
  capabilities = ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM", "CAPABILITY_AUTO_EXPAND"]
  tags = "project=\"2021-black-belt\" stage=\"dev\""
- parameter_overrides = """UseCase=hammerdb
+ parameter_overrides = """UseCase=rdbms_analytics
     CreateNetworkInfrastructure=TRUE
     CreateDmsVpcRole=TRUE
     CreateDmsInfrastructure=TRUE
-    CreateQuickSightInfrastructure=TRUE"""
+    CreateQuickSightInfrastructure=TRUE
+    OpsEmailAddress=adam.north@doit-intl.com"""
 
  [novpc.deploy.parameters]
  stack_name = "novpc"
@@ -33,7 +34,7 @@
  capabilities = ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM", "CAPABILITY_AUTO_EXPAND"]
  tags = "project=\"2021-black-belt\" stage=\"dev\""
  parameter_overrides = """
-    UseCase=hammerdb_novpc
+    UseCase=rdbms_analytics_novpc
     CreateNetworkInfrastructure=FALSE
     CreateDmsInfrastructure=TRUE
     CreateQuickSightInfrastructure=TRUE

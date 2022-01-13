@@ -2,25 +2,19 @@ import argparse
 import json
 import logging
 import os
-import boto3
 from datetime import datetime
 from hudi import get_hudi_options
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit
 from util import get_secret
 
+lake_location_uri = os.path.join(os.environ['LAKE_S3URI'], '')
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
 
 logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     level=log_level)
-
-
-def get_lake_prefix(database_name):
-    client = boto3.client('glue')
-    response = client.get_database(Name=database_name)
-    return response['Database']['LocationUri']
 
 
 def get_args():
@@ -80,7 +74,6 @@ def main():
     trx_seq = None
 
     hudi_options = get_hudi_options(short_table_name, glue_database, table_config, 'FULL')
-    lake_location_uri = get_lake_prefix(glue_database)
     spark_jdbc = get_spark_jdbc(get_secret(secret_id), table_name)
     precombine_field = hudi_options['hoodie.datasource.write.precombine.field']
 

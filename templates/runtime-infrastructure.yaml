@@ -14,6 +14,10 @@ Parameters:
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'FALSE'
 
+  OpsEmailAddress:
+    Type: String
+    Description: The Operations team email address for notifications
+
 Conditions:
   CreateDmsVpcRole: !Equals [ !Ref CreateDmsVpcRole, 'TRUE' ]
 
@@ -90,6 +94,18 @@ Resources:
       ManagedPolicyArns:
         - !Sub 'arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole'
 
+  RuntimeSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub '${ParentStack}-Runtime-SNS'
+
+  RuntimeSnsOpsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref OpsEmailAddress
+      Protocol: email
+      TopicArn: !Ref RuntimeSnsTopic
+
   SourceConfigTableNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -121,3 +137,11 @@ Resources:
       Name: !Sub '/${ParentStack}/runtime/bucket/arn'
       Type: String
       Value: !GetAtt RuntimeBucket.Arn
+
+  RuntimeSnsTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Runtime SNS topic arn
+      Name: !Sub '/${ParentStack}/runtime/sns/topic/arn'
+      Type: String
+      Value: !Ref RuntimeSnsTopic

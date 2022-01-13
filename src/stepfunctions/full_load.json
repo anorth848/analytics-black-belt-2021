@@ -113,7 +113,8 @@
                            {
                              "Classification": "export",
                              "Properties": {
-                                 "LOG_LEVEL.$": "$.log_level"
+                                 "LOG_LEVEL.$": "$.log_level",
+                                 "LAKE_S3URI": "${LakeS3Uri}"
                              }
                            }
                         ]
@@ -127,7 +128,7 @@
             "Type": "Map",
             "InputPath": "$",
             "ItemsPath": "$.lambda.table_list",
-            "Next": "TerminateCluster",
+            "Next": "SuccessOrFailChoice",
             "ResultPath": "$.steps",
             "Parameters": {
                 "table_name.$": "$$.Map.Item.Value",
@@ -136,8 +137,8 @@
             "Catch" : [
                 {
                     "ErrorEquals": [ "States.ALL" ],
-                    "ResultPath": "$.steps.errors",
-                    "Next": "TerminateCluster"
+                    "ResultPath": "$.exception",
+                    "Next": "SuccessOrFailChoice"
                 }
             ],
             "Iterator": {
@@ -147,6 +148,7 @@
                         "Type": "Task",
                         "InputPath": "$",
                         "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+                        "ResultPath": "$.steps",
                         "Parameters": {
                             "ClusterId.$": "$.cluster_id",
                             "Step": {
@@ -162,7 +164,7 @@
                             {
                                 "ErrorEquals": [ "States.TaskFailed" ],
                                 "IntervalSeconds": 5,
-                                "MaxAttempts": 5,
+                                "MaxAttempts": 2,
                                 "BackoffRate": 1.5
                             }
                         ],
@@ -171,6 +173,77 @@
                 }
             }
         },
+        "SuccessOrFailChoice": {
+            "Type": "Choice",
+            "Comment": "If .exception exists in the state input, process the exception otherwise send success sns",
+            "Choices": [
+                {
+                    "Variable": "$.exception",
+                    "IsPresent": true,
+                    "Next": "TransformException"
+                },
+                {
+                    "Variable": "$.exception",
+                    "IsPresent": false,
+                    "Next": "SnsSendSuccess"
+                }
+            ]
+        },
+        "TransformException": {
+            "Type": "Pass",
+            "Comment": "The exception comes through as a json formatted string, transform to actual json for downstream",
+            "Parameters": {
+                "Error.$": "$.exception.Error",
+                "Cause.$": "States.StringToJson($.exception.Cause)"
+            },
+            "ResultPath": "$.exception",
+            "Next": "EmrFailureDetailsMessageOrReasonChoice"
+        },
+        "EmrFailureDetailsMessageOrReasonChoice": {
+            "Type": "Choice",
+            "Comment": "EMR API FailureDetails will contain Reason *or* Message attributes, determine here which we got",
+            "Choices": [
+                {
+                    "Variable": "$.exception.Cause.Step.Status.FailureDetails.Reason",
+                    "IsPresent": true,
+                    "Next": "MungeEmrFailureDetailsForSns"
+                },
+                {
+                    "Variable": "$.exception.Cause.Step.Status.FailureDetails.Message",
+                    "IsPresent": true,
+                    "Next": "SnsSendFailure"
+                }
+            ]
+        },
+        "MungeEmrFailureDetailsForSns": {
+            "Type": "Pass",
+            "Comment": "Copy Reason to Message for the downstream SnsSendFailure",
+            "Parameters": {
+                "Cause.Step.Status.FailureDetails.Message.$": "$.exception.Cause.Step.Status.FailureDetails.Reason"
+            },
+            "ResultPath": "$.exception",
+            "Next": "SnsSendFailure"
+        },
+        "SnsSendFailure": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "${RuntimeSnsTopicArn}",
+                "Subject.$": "States.Format('FAILURE | {} | {}', $$.State.Name, $.exception.Error)",
+                "Message.$": "States.Format('Execution: {} Message: {} LogFile: {}', $$.Execution.Id, $.exception.Cause.Step.Status.FailureDetails.Message, $.exception.Cause.Step.Status.FailureDetails.LogFile)"
+            },
+            "Next": "TerminateCluster"
+        },
+        "SnsSendSuccess": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "${RuntimeSnsTopicArn}",
+                "Subject.$": "States.Format('SUCCESS | {}', $$.State.Name)",
+                "Message": "The job succeeded."
+            },
+            "Next": "TerminateCluster"
+        },
         "TerminateCluster": {
             "Type": "Task",
             "Resource": "arn:aws:states:::elasticmapreduce:terminateCluster",
@@ -178,7 +251,30 @@
             "Parameters": {
                 "ClusterId.$": "$.cluster.ClusterId"
             },
-            "End": true
+            "Next": "ExitSuccessOrFail"
+        },
+        "ExitSuccessOrFail": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.exception",
+                    "IsPresent": true,
+                    "Next": "ExitFail"
+                },
+                {
+                    "Variable": "$.exception",
+                    "IsPresent": false,
+                    "Next": "ExitSuccess"
+                }
+            ]
+        },
+        "ExitSuccess": {
+            "Type": "Succeed"
+        },
+        "ExitFail": {
+          "Type": "Fail",
+          "Cause": "$.exception.Cause.Step.Status.FailureDetails.Message",
+          "Error": "$.exception.Error"
         }
     }
 }

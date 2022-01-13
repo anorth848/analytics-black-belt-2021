@@ -5,7 +5,6 @@ Description: >
 Parameters:
   UseCase:
     Type: String
-    Default: hammerdb
     AllowedPattern: "[a-z_]+"
 
   ParentStack:

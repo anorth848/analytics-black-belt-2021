@@ -87,7 +87,7 @@ Resources:
         DataLocationResource:
           CatalogId: !Ref AWS::AccountId
           S3Resource: !Join ["/", [
-              !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/arn}}',
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/silver/arn}}',
               !Sub '{{resolve:ssm:/${ParentStack}/lake/catalog}}'
           ] ]
 
@@ -133,6 +133,11 @@ Resources:
                 Action:
                   - iam:PassRole
                 Resource: !GetAtt EmrEc2Role.Arn
+              - Sid: AllowSns
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Sub '{{resolve:ssm:/${ParentStack}/runtime/sns/topic/arn}}'
 
   FullLoadStepFunction:
     Type: AWS::Serverless::StateMachine
@@ -145,6 +150,8 @@ Resources:
         EmrLogUri: !Sub 's3n://aws-logs-${AWS::AccountId}-${AWS::Region}/elasticmapreduce/${ParentStack}/'
         EmrServiceRole: !Ref EmrServiceRole
         EmrJobFlowRole: !Ref EmrEc2InstanceProfile
+        RuntimeSnsTopicArn: !Sub '{{resolve:ssm:/${ParentStack}/runtime/sns/topic/arn}}'
+        LakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/silver/prefix_uri', '}}' ] ]
       Role: !GetAtt FullLoadStepFunctionRole.Arn
       Type: STANDARD
 

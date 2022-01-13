@@ -14,7 +14,6 @@ Parameters:
 
   UseCase:
     Type: String
-    Default: hammerdb
     AllowedPattern: "[a-z_]+"
 
 
@@ -42,15 +41,15 @@ Resources:
     Type: AWS::DMS::Endpoint
     Properties:
       CertificateArn: !Ref RdsCertificate
-      DatabaseName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:dbname}}'
+      DatabaseName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:dbname}}'
       EndpointType: source
-      EngineName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:engine}}'
+      EngineName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:engine}}'
       ExtraConnectionAttributes: 'captureDDLs=N;pluginName=pglogical;heartbeatEnable=true;heartbeatSchema=awsdms;'
-      Password: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:password}}'
-      Port: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:port}}'
-      ServerName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:host}}'
+      Password: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:password}}'
+      Port: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:port}}'
+      ServerName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:host}}'
       SslMode: verify-ca
-      Username: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/${UseCase}/dms:SecretString:username}}'
+      Username: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:username}}'
 
   RdsCertificateArnParameter:
     Type: AWS::SSM::Parameter
