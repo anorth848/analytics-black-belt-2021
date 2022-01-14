@@ -40,6 +40,24 @@ Resources:
       SSESpecification:
         SSEEnabled: TRUE
 
+  CdcStatusTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: s3_prefix
+          AttributeType: S
+        - AttributeName: max_trx_seq
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: s3_prefix
+          KeyType: HASH
+        - AttributeName: max_trx_seq
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: TRUE
+
   RuntimeBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain

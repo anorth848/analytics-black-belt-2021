@@ -218,7 +218,7 @@ Resources:
           },
           "PostProcessingRules": null
         }
-      TableMappings: >
+      TableMappings: !Sub |-
         {
             "rules": [
                 {
@@ -235,6 +235,17 @@ Resources:
                 {
                     "rule-type": "transformation",
                     "rule-id": "1",
+                    "rule-name": "add-db-prefix",
+                    "rule-target": "schema",
+                    "object-locator": {
+                        "schema-name": "%"
+                    },
+                    "rule-action": "add-prefix",
+                    "value": "{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:dbname}}/"
+                },
+                {
+                    "rule-type": "transformation",
+                    "rule-id": "2",
                     "rule-name": "columns-to-lower",
                     "rule-target": "column",
                     "object-locator": {
@@ -242,38 +253,32 @@ Resources:
                         "table-name": "%",
                         "column-name": "%"
                     },
-                    "rule-action": "convert-lowercase",
-                    "value": null,
-                    "old-value": null
+                    "rule-action": "convert-lowercase"
                 },
                 {
                     "rule-type": "transformation",
-                    "rule-id": "2",
+                    "rule-id": "3",
                     "rule-name": "table-to-lower",
                     "rule-target": "table",
                     "object-locator": {
                         "schema-name": "%",
                         "table-name": "%"
                     },
-                    "rule-action": "convert-lowercase",
-                    "value": null,
-                    "old-value": null
+                    "rule-action": "convert-lowercase"
                 },
                 {
                     "rule-type": "transformation",
-                    "rule-id": "3",
+                    "rule-id": "4",
                     "rule-name": "schema-to-lower",
                     "rule-target": "schema",
                     "object-locator": {
                         "schema-name": "%"
                     },
-                    "rule-action": "convert-lowercase",
-                    "value": null,
-                    "old-value": null
+                    "rule-action": "convert-lowercase"
                 },
                 {
                     "rule-type": "transformation",
-                    "rule-id": "4",
+                    "rule-id": "5",
                     "rule-name": "add-trx-seq",
                     "rule-target": "column",
                     "object-locator": {
@@ -281,7 +286,7 @@ Resources:
                         "table-name": "%"
                     },
                     "rule-action": "add-column",
-                    "value": "transact_id",
+                    "value": "trx_seq",
                     "expression": "$AR_H_CHANGE_SEQ",
                     "data-type": {
                         "type": "string",
@@ -290,17 +295,32 @@ Resources:
                 },
                 {
                     "rule-type": "transformation",
-                    "rule-id": "5",
-                    "rule-name": "rename-op-to-trx-op",
+                    "rule-id": "6",
+                    "rule-name": "add-trx-op",
                     "rule-target": "column",
                     "object-locator": {
                         "schema-name": "%",
-                        "table-name": "%",
-                        "column-name": "Op"
+                        "table-name": "%"
                     },
-                    "rule-action": "rename",
+                    "rule-action": "add-column",
                     "value": "trx_op",
-                    "old-value": null
+                    "expression": "$AR_H_OPERATION",
+                    "data-type": {
+                        "type": "string",
+                        "length": 50
+                    }
+                },
+                {
+                  "rule-type": "transformation",
+                  "rule-id": "7",
+                  "rule-name": "remove-op",
+                  "rule-target": "column",
+                  "object-locator": {
+                      "schema-name": "%",
+                      "table-name": "%",
+                      "column-name": "Op"
+                  },
+                  "rule-action": "remove-column"
                 }
             ]
         }

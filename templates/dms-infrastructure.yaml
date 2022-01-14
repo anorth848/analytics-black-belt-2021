@@ -161,7 +161,7 @@ Resources:
         ServiceAccessRoleArn: !GetAtt DmsS3EndpointRole.Arn
         CompressionType: gzip
       ExtraConnectionAttributes: >
-        datePartitionEnabled=true;dataFormat=parquet;parquetTimestampInMillisecond=true;
+        datePartitionEnabled=true;dataFormat=parquet;parquetTimestampInMillisecond=true;cdcMinFileSize=1048576;cdcMaxBatchInterval=300;
 
   RdsCertificateArnParameter:
     Type: AWS::SSM::Parameter
@@ -194,3 +194,11 @@ Resources:
       Name: !Sub '/${ParentStack}/dms/endpoint/s3/arn'
       Type: String
       Value: !Ref DmsS3Endpoint
+
+  DmsS3EndpointRoleId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: DMS S3 Endpoint Role ID
+      Name: !Sub '/${ParentStack}/dms/iam/endpoint_s3/role_id'
+      Type: String
+      Value: !GetAtt DmsS3EndpointRole.RoleId

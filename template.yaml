@@ -79,15 +79,6 @@ Resources:
         UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
 
-#  DataLakeBucketPolicyStack:
-#    Type: AWS::Serverless::Application
-#    Condition: CreateNetworkInfrastructure
-#    DependsOn: [ NetworkInfrastructureStack, DataLakeStack ]
-#    Properties:
-#      Location: templates/datalake-bucketpolicy.yaml
-#      Parameters:
-#        ParentStack: !Ref AWS::StackName
-
   CicdInfrastructureStack:
     Type: AWS::Serverless::Application
     Properties:
@@ -124,11 +115,19 @@ Resources:
   DmsInfrastructureStack:
     Type: AWS::Serverless::Application
     DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, SecretsStack ]
-    Condition: CreateDmsInfrastructure
     Properties:
       Location: templates/dms-infrastructure.yaml
       Parameters:
         UseCase: !Ref UseCase
+        ParentStack: !Ref AWS::StackName
+
+  DataLakeBucketPolicyStack:
+    Type: AWS::Serverless::Application
+    Condition: CreateNetworkInfrastructure
+    DependsOn: [ NetworkInfrastructureStack, DataLakeStack, DmsInfrastructureStack ]
+    Properties:
+      Location: templates/datalake-bucketpolicy.yaml
+      Parameters:
         ParentStack: !Ref AWS::StackName
 
   #  This stack assumes you've enabled QuickSight in this account and have access from your IAM credentials

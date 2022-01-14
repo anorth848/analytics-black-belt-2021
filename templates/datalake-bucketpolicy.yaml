@@ -39,7 +39,7 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: "Data-access-to-specific-VPCE"
+          - Sid: "Deny-non-VPCE-data-access"
             Principal: "*"
             Action:
               - "s3:GetObject*"
@@ -52,5 +52,10 @@ Resources:
                 aws:SourceVpce: !Sub '{{resolve:ssm:/${ParentStack}/network/vpce/datalake/id}}'
               StringNotLike:
                 aws:userid:
+                  #  Athena queries against LakeFormation tables do not support the viaService: athena
+                  #  so explicitely whitelist the LakeFormation role id
                   - !Sub '{{resolve:ssm:/${ParentStack}/lake/iam/lf/role_id}}:*'
+                  #  AWS DMS "VPC endpoints for non-RDBMS engines – AWS DMS doesn’t support VPC endpoints for non-RDBMS engines."
+                  #  So whitelist the role id
+                  - !Sub '{{resolve:ssm:/${ParentStack}/dms/iam/endpoint_s3/role_id}}:*'
                   - !Sub '${AWS::AccountId}'
