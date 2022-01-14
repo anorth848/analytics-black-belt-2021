@@ -59,7 +59,7 @@ Resources:
       EndpointType: source
       EngineName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:engine}}'
       ExtraConnectionAttributes: >
-        captureDDLs=N;pluginName=pglogical;heartbeatEnable=true;heartbeatSchema=awsdms;slotName=dms;
+        captureDDLs=N;pluginName=PGLOGICAL;heartbeatEnable=true;heartbeatSchema=awsdms
       Password: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:password}}'
       Port: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:port}}'
       ServerName: !Sub '{{resolve:secretsmanager:${ParentStack}/rdbms/rds/primary/dms:SecretString:host}}'
@@ -178,3 +178,19 @@ Resources:
       Name: !Sub '/${ParentStack}/dms/subnet_group/name'
       Type: String
       Value: !Ref DmsSubnetGroup
+
+  DmsRdsEndpointArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: DMS RDS Endpoint ARN
+      Name: !Sub '/${ParentStack}/dms/endpoint/rds/arn'
+      Type: String
+      Value: !Ref DmsRdsEndpoint
+
+  DmsS3EndpointArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: DMS RDS Endpoint ARN
+      Name: !Sub '/${ParentStack}/dms/endpoint/s3/arn'
+      Type: String
+      Value: !Ref DmsS3Endpoint
