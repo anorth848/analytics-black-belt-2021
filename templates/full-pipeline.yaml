@@ -8,7 +8,7 @@ Parameters:
     Type: String
     Description: Parent stack this template was launched from, used for naming SSM parameters
 
-  # For more infomration about EMR IAM roles: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html
+  # For more information about EMR IAM roles: https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html
   EmrServiceRole:
     Type: String
     Default: "EMR_DefaultRole"
@@ -74,7 +74,7 @@ Resources:
       Resource:
         DatabaseResource:
           CatalogId: !Ref AWS::AccountId
-          Name: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/catalog', '}}' ] ]
+          Name: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/glue/db/name', '}}' ] ]
 
   EmrLakeLocationPermissions:
     Type: AWS::LakeFormation::Permissions
@@ -88,7 +88,7 @@ Resources:
           CatalogId: !Ref AWS::AccountId
           S3Resource: !Join ["/", [
               !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/silver/arn}}',
-              !Sub '{{resolve:ssm:/${ParentStack}/lake/catalog}}'
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}'
           ] ]
 
   EmrLakeTablePermissions:
@@ -101,7 +101,7 @@ Resources:
       Resource:
         TableResource:
           CatalogId: !Ref AWS::AccountId
-          DatabaseName: !Sub '{{resolve:ssm:/${ParentStack}/lake/catalog}}'
+          DatabaseName: !Sub '{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}'
           TableWildcard: {}
 
   FullLoadStepFunctionRole:

@@ -164,7 +164,7 @@
                             {
                                 "ErrorEquals": [ "States.TaskFailed" ],
                                 "IntervalSeconds": 5,
-                                "MaxAttempts": 2,
+                                "MaxAttempts": 1,
                                 "BackoffRate": 1.5
                             }
                         ],
@@ -229,20 +229,22 @@
             "Resource": "arn:aws:states:::sns:publish",
             "Parameters": {
                 "TopicArn": "${RuntimeSnsTopicArn}",
-                "Subject.$": "States.Format('FAILURE | {} | {}', $$.State.Name, $.exception.Error)",
+                "Subject.$": "States.Format('FAILURE | Full Load | {} | {}', $.lambda.identifier, $.exception.Error)",
                 "Message.$": "States.Format('Execution: {} Message: {} LogFile: {}', $$.Execution.Id, $.exception.Cause.Step.Status.FailureDetails.Message, $.exception.Cause.Step.Status.FailureDetails.LogFile)"
             },
-            "Next": "TerminateCluster"
+            "Next": "TerminateCluster",
+            "ResultPath": "$.sns_output"
         },
         "SnsSendSuccess": {
             "Type": "Task",
             "Resource": "arn:aws:states:::sns:publish",
             "Parameters": {
                 "TopicArn": "${RuntimeSnsTopicArn}",
-                "Subject.$": "States.Format('SUCCESS | {}', $$.State.Name)",
-                "Message": "The job succeeded."
+                "Subject.$": "States.Format('SUCCESS | Full Load | {}', $.lambda.identifier)",
+                "Message.$": "States.Format('Execution: {} Succeeded.', $$.Execution.Id)"
             },
-            "Next": "TerminateCluster"
+            "Next": "TerminateCluster",
+            "ResultPath": "$.sns_output"
         },
         "TerminateCluster": {
             "Type": "Task",
@@ -251,7 +253,8 @@
             "Parameters": {
                 "ClusterId.$": "$.cluster.ClusterId"
             },
-            "Next": "ExitSuccessOrFail"
+            "Next": "ExitSuccessOrFail",
+            "ResultPath": "$.cluster.terminate_output"
         },
         "ExitSuccessOrFail": {
             "Type": "Choice",
@@ -273,8 +276,8 @@
         },
         "ExitFail": {
           "Type": "Fail",
-          "Cause": "$.exception.Cause.Step.Status.FailureDetails.Message",
-          "Error": "$.exception.Error"
+          "Cause": "Check SNS notification for details, or look in this execution's output.",
+          "Error": "Error detected in EMR Job Steps."
         }
     }
 }

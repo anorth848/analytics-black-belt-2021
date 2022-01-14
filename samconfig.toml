@@ -38,4 +38,5 @@
     CreateNetworkInfrastructure=FALSE
     CreateDmsInfrastructure=TRUE
     CreateQuickSightInfrastructure=TRUE
-    VpcSubnetIds=subnet-0c42e559d4f193d7c,subnet-0a19735793dc0ca0e"""
+    VpcSubnetIds=subnet-0c42e559d4f193d7c,subnet-0a19735793dc0ca0e
+    OpsEmailAddress=adam.north@doit-intl.com"""

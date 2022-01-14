@@ -62,7 +62,6 @@ def get_spark_jdbc(secret, table_name):
 def main():
     args = get_args()
     table_name = args.table_name
-    short_table_name = table_name.split('.')[-1]
     f = open('/mnt/var/lib/instance-controller/public/runtime_configs/full_load_configs.json')
     config_dict = json.load(f)
     logging.debug(json.dumps(config_dict, indent=4))
@@ -71,9 +70,10 @@ def main():
     table_config = config_dict['TableConfigs'][table_name]
     secret_id = database_config['secret']
     glue_database = database_config['target_db_name']
+    glue_table_name = f"{database_config['identifier']}_{table_name.replace('.','_')}"
     trx_seq = None
 
-    hudi_options = get_hudi_options(short_table_name, glue_database, table_config, 'FULL')
+    hudi_options = get_hudi_options(glue_table_name, glue_database, table_config, 'FULL')
     spark_jdbc = get_spark_jdbc(get_secret(secret_id), table_name)
     precombine_field = hudi_options['hoodie.datasource.write.precombine.field']
 
@@ -95,7 +95,7 @@ def main():
         .format('org.apache.hudi') \
         .options(**hudi_options) \
         .mode('overwrite') \
-        .save(os.path.join(lake_location_uri, short_table_name, ''))
+        .save(os.path.join(lake_location_uri, glue_table_name, ''))
 
 
 if __name__ == "__main__":

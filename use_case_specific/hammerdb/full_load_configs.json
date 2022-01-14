@@ -1,7 +1,7 @@
 [
     {
         "secret": "da-black-belt-2021/rdbms/rds/primary/spark",
-        "target_db_name": "hammerdb",
+        "target_db_name": "rdbms_analytics",
         "config": "database::config",
         "identifier": "hammerdb"
     },
@@ -68,7 +68,7 @@
     },
         {
         "secret": "da-black-belt-2021/rdbms/hammerdb-fail",
-        "target_db_name": "hammerdb",
+        "target_db_name": "rdbms_analytics",
         "config": "database::config",
         "identifier": "hammerdb-fail"
     },

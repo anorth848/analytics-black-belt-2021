@@ -49,7 +49,7 @@ Resources:
   AthenaDataSource:
     Type: AWS::QuickSight::DataSource
     Properties:
-      Name: !Sub 'Athena-{{resolve:ssm:/${ParentStack}/lake/catalog}}'
+      Name: !Sub 'Athena-{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}'
       AwsAccountId: !Sub '${AWS::AccountId}'
       DataSourceId: !Join ['-', [ !Ref ParentStack, !Ref UseCase ] ]
       DataSourceParameters:
