@@ -18,55 +18,93 @@
         }
     },
     {
-        "primary_key": "c_w_id,c_d_id,c_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "c_w_id,c_d_id,c_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.customer",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
     },
     {
-        "primary_key": "d_w_id,d_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "d_w_id,d_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.district",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
     },
     {
-        "primary_key": "i_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "i_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.item",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
     },
     {
-        "primary_key": "no_w_id, no_d_id, no_o_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "no_w_id, no_d_id, no_o_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.new_order",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
+
     },
     {
-        "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.order_line",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_jdbc_config": {
+            "partitionColumn": "ol_w_id",
+            "lowerBound": "0",
+            "upperBound": "400",
+            "numPartitions": "16"
+        },
+        "spark_submit_full_config": "--conf spark.executor.cores=2 --conf spark.executor.memory=4g"
     },
     {
-        "primary_key": "o_w_id, o_d_id, o_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "o_w_id, o_d_id, o_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.orders",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
     },
     {
-        "primary_key": "s_i_id,s_w_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+        "hudi_config": {
+            "primary_key": "s_i_id,s_w_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.stock",
-        "identifier": "hammerdb"
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
     },
-        {
+    {
+        "hudi_config": {
+            "primary_key": "w_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
+        "config": "table::public.warehouse",
+        "identifier": "hammerdb",
+        "spark_submit_full_config": ""
+    },
+    {
         "secret": "da-black-belt-2021/rdbms/hammerdb-fail",
         "target_db_name": "rdbms_analytics",
         "config": "database::config",
@@ -84,11 +122,14 @@
             "instance_type": "m5.2xlarge"
         }
     },
-        {
-        "primary_key": "d_w_id,d_id",
-        "watermark": "trx_seq",
-        "is_partitioned": false,
+    {
+        "hudi_config": {
+            "primary_key": "d_w_id,d_id",
+            "watermark": "trx_seq",
+            "is_partitioned": false
+        },
         "config": "table::public.district",
-        "identifier": "hammerdb-fail"
+        "identifier": "hammerdb-fail",
+        "spark_submit_full_config": ""
     }
 ]

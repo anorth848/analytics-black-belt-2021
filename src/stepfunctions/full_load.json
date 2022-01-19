@@ -127,11 +127,11 @@
         "ParallelLoadSteps": {
             "Type": "Map",
             "InputPath": "$",
-            "ItemsPath": "$.lambda.table_list",
+            "ItemsPath": "$.lambda.tables",
             "Next": "SuccessOrFailChoice",
             "ResultPath": "$.steps",
             "Parameters": {
-                "table_name.$": "$$.Map.Item.Value",
+                "table_config.$": "$$.Map.Item.Value",
                 "cluster_id.$": "$.cluster.ClusterId"
             },
             "Catch" : [
@@ -154,10 +154,10 @@
                             "Step": {
                                 "ActionOnFailure": "CONTINUE",
                                 "HadoopJarStep": {
-                                    "Args.$": "States.Array('spark-submit', '/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', $.table_name)",
+                                    "Args.$": "States.Array('spark-submit', States.Format($.table_config.spark_conf), '/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', $.table_config.table_name)",
                                     "Jar": "command-runner.jar"
                                 },
-                                "Name.$": "$.table_name"
+                                "Name.$": "$.table_config.table_name"
                             }
                         },
                         "Retry": [
@@ -219,7 +219,17 @@
             "Type": "Pass",
             "Comment": "Copy Reason to Message for the downstream SnsSendFailure",
             "Parameters": {
-                "Cause.Step.Status.FailureDetails.Message.$": "$.exception.Cause.Step.Status.FailureDetails.Reason"
+                "Cause": {
+                    "Step": {
+                        "Status": {
+                            "FailureDetails": {
+                                "Message.$": "$.exception.Cause.Step.Status.FailureDetails.Reason",
+                                "LogFile.$": "$.exception.Cause.Step.Status.FailureDetails.LogFile"
+                            }
+                        }
+                    }
+                },
+                "Error.$": "$.exception.Error"
             },
             "ResultPath": "$.exception",
             "Next": "SnsSendFailure"

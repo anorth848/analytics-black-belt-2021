@@ -31,6 +31,42 @@ Parameters:
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'FALSE'
 
+  DbName:
+    Type: String
+    NoEcho: True
+    Description: The database name for the RDS secret
+
+  DbEndpoint:
+    Type: String
+    NoEcho: True
+    Description: The RDS endpoint
+    Default: xxxxxxxxx
+
+  DbPort:
+    Type: Number
+    NoEcho: True
+    Description: The RDS Db Port
+    Default: 5432
+
+  DbEngine:
+    Type: String
+    NoEcho: True
+    Description: The RDS Db Engine
+    Default: postgres
+    AllowedValues: [ 'postgres' ]
+
+  DbUserNameSpark:
+    Type: String
+    NoEcho: True
+    Description: The RDS Db user for spark
+    Default: spark
+
+  DbUserNameDms:
+    Type: String
+    NoEcho: True
+    Description: The RDS Db user for AWS DMS
+    Default: awsdms
+
   CreateDmsVpcRole:
     #  If DMS has not been previously used in this account, you will need to create the dms-vpc-role or DMS resources in this stack will fail
     #  With error: The IAM Role arn:aws:iam::${AccountId}:role/dms-vpc-role is not configured properly.
@@ -73,11 +109,13 @@ Resources:
 
   DataLakeStack:
     Type: AWS::Serverless::Application
+    DependsOn: NetworkInfrastructureStack
     Properties:
       Location: templates/datalake.yaml
       Parameters:
         UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
+        CreateLambdaInVpc: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
 
   CicdInfrastructureStack:
     Type: AWS::Serverless::Application
@@ -102,6 +140,12 @@ Resources:
       Parameters:
         UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
+        DbName: !Ref DbName
+        DbEndpoint: !Ref DbEndpoint
+        DbPort: !Ref DbPort
+        DbEngine: !Ref DbEngine
+        DbUserNameSpark: !Ref DbUserNameSpark
+        DbUserNameDms: !Ref DbUserNameDms
 
   FullPipelineStack:
     Type: AWS::Serverless::Application

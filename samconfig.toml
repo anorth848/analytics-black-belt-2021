@@ -19,7 +19,11 @@
     CreateDmsVpcRole=TRUE
     CreateDmsInfrastructure=TRUE
     CreateQuickSightInfrastructure=TRUE
-    OpsEmailAddress=adam.north@doit-intl.com"""
+    OpsEmailAddress=adam.north@doit-intl.com
+    DbName=hammerdb
+    DbEndpoint=pg-hammerdb.cob4psnojwdw.us-east-1.rds.amazonaws.com
+    DbUserNameSpark=spark
+    DBUserNameDms=awsdms"""
 
  [novpc.deploy.parameters]
  stack_name = "novpc"

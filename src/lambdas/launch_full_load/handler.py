@@ -70,12 +70,19 @@ def get_configs(identifier):
 
 
 def generate_sfn_input(identifier, config_s3_uri, configs):
-    table_list = [x for x in configs['TableConfigs'].keys()]
+    tables = []
+    for table in configs['TableConfigs'].keys():
+        entry = {
+            'table_name': table,
+            'spark_conf': configs['TableConfigs'][table]['spark_submit_full_config']
+        }
+        tables.append(entry)
+    #table_list = [x for x in configs['TableConfigs'].keys()]
     sfn_input = {
         'lambda': {
             'identifier': identifier,
             'runtime_configs': config_s3_uri,
-            'table_list': table_list,
+            'tables': tables,
             'emr': configs['EmrConfigs'],
             'log_level': log_level
         }

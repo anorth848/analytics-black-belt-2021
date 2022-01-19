@@ -4,9 +4,8 @@ import logging
 import os
 from datetime import datetime
 from hudi import get_hudi_options
-from pyspark.sql import SparkSession
+from jdbc import get_spark_jdbc
 from pyspark.sql.functions import lit
-from util import get_secret
 
 lake_location_uri = os.path.join(os.environ['LAKE_S3URI'], '')
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
@@ -24,41 +23,6 @@ def get_args():
     return args
 
 
-def get_spark_jdbc(secret, table_name):
-    username = secret['username']
-    password = secret['password']
-    engine = secret['engine']
-    host = secret['host']
-    port = secret['port']
-    dbname = secret['dbname']
-
-    if engine.startswith('postgres'):
-        driver = 'org.postgresql.Driver'
-        engine = 'postgresql'
-        logging.info('Engine is postgresql')
-    else:
-        raise ValueError(f'Engine {engine} not yet supported.')
-
-    spark = SparkSession\
-        .builder\
-        .appName(f'{dbname}.{table_name}_to_HudiLake')\
-        .getOrCreate()
-
-    jdbc_url = f'jdbc:{engine}://{host}:{port}/{dbname}'
-    logging.debug(f'JDBC URL: {jdbc_url}')
-
-    # TODO: Support more options such as query, partitoncColumn etc
-    spark_jdbc = spark.read.format('jdbc') \
-        .option('url', jdbc_url)\
-        .option('dbtable', table_name) \
-        .option('user', username) \
-        .option('password', password) \
-        .option('fetchSize', 10000) \
-        .option("driver", driver)
-
-    return spark_jdbc
-
-
 def main():
     args = get_args()
     table_name = args.table_name
@@ -72,9 +36,10 @@ def main():
     glue_database = database_config['target_db_name']
     glue_table_name = f"{database_config['identifier']}_{table_name.replace('.','_')}"
     trx_seq = None
+    spark_jdbc_config = table_config['spark_jdbc_config'] if 'spark_jdbc_config' in table_config else None
 
-    hudi_options = get_hudi_options(glue_table_name, glue_database, table_config, 'FULL')
-    spark_jdbc = get_spark_jdbc(get_secret(secret_id), table_name)
+    hudi_options = get_hudi_options(glue_table_name, glue_database, table_config['hudi_config'], 'FULL')
+    spark_jdbc = get_spark_jdbc(secret_id, table_name, spark_jdbc_config)
     precombine_field = hudi_options['hoodie.datasource.write.precombine.field']
 
     if precombine_field == 'trx_seq':

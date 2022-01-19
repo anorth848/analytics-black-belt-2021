@@ -157,11 +157,11 @@ Resources:
       ResourceIdentifier: !Sub '${ParentStack}-s3'
       S3Settings:
         BucketName: !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/bronze/name}}'
-        BucketFolder: !Sub '${UseCase}/cdc/'
+        BucketFolder: !Sub '${UseCase}/cdc/{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}/'
         ServiceAccessRoleArn: !GetAtt DmsS3EndpointRole.Arn
         CompressionType: gzip
       ExtraConnectionAttributes: >
-        datePartitionEnabled=true;dataFormat=parquet;parquetTimestampInMillisecond=true;cdcMinFileSize=1048576;cdcMaxBatchInterval=300;
+        datePartitionEnabled=true;datePartitionDelimiter=NONE;dataFormat=parquet;parquetTimestampInMillisecond=true;cdcMinFileSize=1048576;cdcMaxBatchInterval=300;
 
   RdsCertificateArnParameter:
     Type: AWS::SSM::Parameter
