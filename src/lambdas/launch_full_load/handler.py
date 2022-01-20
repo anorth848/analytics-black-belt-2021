@@ -72,9 +72,15 @@ def get_configs(identifier):
 def generate_sfn_input(identifier, config_s3_uri, configs):
     tables = []
     for table in configs['TableConfigs'].keys():
+        spark_submit_args = ['spark-submit']
+        if 'spark_conf' in configs['TableConfigs'][table] and 'full_load' in configs['TableConfigs'][table]['spark_conf']:
+            for k, v in configs['TableConfigs'][table]['spark_conf']['full_load'].items():
+                spark_submit_args.extend(['--conf', f'{k}={v}'])
+
+        spark_submit_args.extend(['/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', table])
         entry = {
             'table_name': table,
-            'spark_conf': configs['TableConfigs'][table]['spark_submit_full_config']
+            'jar_step_args': spark_submit_args
         }
         tables.append(entry)
     #table_list = [x for x in configs['TableConfigs'].keys()]

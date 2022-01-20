@@ -7,14 +7,21 @@
     },
     {
         "master": {
-            "instance_type": "m5.xlarge"
+            "instance_type": "m5.2xlarge"
         },
-        "step_parallelism": 4,
+        "step_parallelism": 1,
         "config": "emr::config::full_load",
         "identifier": "hammerdb",
+        "spark_conf": {
+            "spark": {
+                "dynamicAllocation": {
+                    "initialExecutors": "6"
+                }
+            }
+        },
         "worker": {
-            "count": 4,
-            "instance_type": "m5.2xlarge"
+            "count": "6",
+            "instance_type": "m5.4xlarge"
         }
     },
     {
@@ -24,8 +31,7 @@
             "is_partitioned": false
         },
         "config": "table::public.customer",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
     },
     {
         "hudi_config": {
@@ -34,8 +40,7 @@
             "is_partitioned": false
         },
         "config": "table::public.district",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
     },
     {
         "hudi_config": {
@@ -44,8 +49,7 @@
             "is_partitioned": false
         },
         "config": "table::public.item",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
     },
     {
         "hudi_config": {
@@ -54,8 +58,7 @@
             "is_partitioned": false
         },
         "config": "table::public.new_order",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
 
     },
     {
@@ -72,7 +75,12 @@
             "upperBound": "400",
             "numPartitions": "16"
         },
-        "spark_submit_full_config": "--conf spark.executor.cores=2 --conf spark.executor.memory=4g"
+        "spark_conf": {
+            "zzzfull_load": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "4g"
+            }
+        }
     },
     {
         "hudi_config": {
@@ -81,8 +89,7 @@
             "is_partitioned": false
         },
         "config": "table::public.orders",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
     },
     {
         "hudi_config": {
@@ -91,8 +98,7 @@
             "is_partitioned": false
         },
         "config": "table::public.stock",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
     },
     {
         "hudi_config": {
@@ -101,8 +107,7 @@
             "is_partitioned": false
         },
         "config": "table::public.warehouse",
-        "identifier": "hammerdb",
-        "spark_submit_full_config": ""
+        "identifier": "hammerdb"
     },
     {
         "secret": "da-black-belt-2021/rdbms/hammerdb-fail",
@@ -124,12 +129,23 @@
     },
     {
         "hudi_config": {
-            "primary_key": "d_w_id,d_id",
+            "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
             "watermark": "trx_seq",
             "is_partitioned": false
         },
-        "config": "table::public.district",
+        "config": "table::public.order_line",
         "identifier": "hammerdb-fail",
-        "spark_submit_full_config": ""
+        "spark_jdbc_config": {
+            "partitionColumn": "ol_w_id",
+            "lowerBound": "0",
+            "upperBound": "400",
+            "numPartitions": "16"
+        },
+        "spark_conf": {
+            "full_load": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "4g"
+            }
+        }
     }
 ]

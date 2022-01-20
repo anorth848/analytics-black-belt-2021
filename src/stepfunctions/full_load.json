@@ -103,7 +103,8 @@
                         "Properties":{
                             "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
                             "spark.sql.hive.convertMetastore": "false",
-                            "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar"
+                            "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar",
+                            "spark.dynamicAllocation.initialExecutors.$": "$.emr.spark_conf.spark.dynamicAllocation.initialExecutors"
                         }
                     },
                     {
@@ -118,6 +119,12 @@
                              }
                            }
                         ]
+                    },
+                    {
+                        "Classification": "spark",
+                        "Properties": {
+                            "maximizeResourceAllocation": "true"
+                        }
                     }
                 ]
             },
@@ -154,7 +161,7 @@
                             "Step": {
                                 "ActionOnFailure": "CONTINUE",
                                 "HadoopJarStep": {
-                                    "Args.$": "States.Array('spark-submit', States.Format($.table_config.spark_conf), '/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', $.table_config.table_name)",
+                                    "Args.$": "$.table_config.jar_step_args",
                                     "Jar": "command-runner.jar"
                                 },
                                 "Name.$": "$.table_config.table_name"
