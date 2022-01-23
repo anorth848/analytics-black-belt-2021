@@ -50,7 +50,7 @@
                                                     "SizeInGB": 32,
                                                     "VolumeType": "gp2"
                                                 },
-                                                "VolumesPerInstance": 2
+                                                "VolumesPerInstance": 1
                                             }
                                         ]
                                     },
@@ -72,7 +72,7 @@
                                                     "SizeInGB": 100,
                                                     "VolumeType": "gp2"
                                                 },
-                                                "VolumesPerInstance": 2
+                                                "VolumesPerInstance": 1
                                             }
                                         ]
                                     },
@@ -103,8 +103,7 @@
                         "Properties":{
                             "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
                             "spark.sql.hive.convertMetastore": "false",
-                            "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar",
-                            "spark.dynamicAllocation.initialExecutors.$": "$.emr.spark_conf.spark.dynamicAllocation.initialExecutors"
+                            "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar,/usr/lib/spark/jars/hudi-utilities-bundle_2.12-0.10.0.jar"
                         }
                     },
                     {
@@ -119,12 +118,6 @@
                              }
                            }
                         ]
-                    },
-                    {
-                        "Classification": "spark",
-                        "Properties": {
-                            "maximizeResourceAllocation": "true"
-                        }
                     }
                 ]
             },

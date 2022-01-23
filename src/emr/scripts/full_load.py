@@ -49,7 +49,7 @@ def main():
         trx_seq = datetime.now().strftime('%Y%m%d%H%M%S000000000000000000000')
 
     jdbc_df = spark_jdbc.load() \
-        .withColumn('trx_op', lit('INSERT'))
+        .withColumn('Op', lit('I'))
 
     if trx_seq is not None:
         final_df = jdbc_df.withColumn('trx_seq', lit(trx_seq))

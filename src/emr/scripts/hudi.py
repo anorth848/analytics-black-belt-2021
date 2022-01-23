@@ -12,7 +12,8 @@ def get_hudi_options(table_name, database_name, table_config, operation):
         'hoodie.datasource.write.precombine.field': precombine_field,
         'hoodie.datasource.hive_sync.database': glue_database,
         'hoodie.datasource.hive_sync.enable': 'true',
-        'hoodie.datasource.hive_sync.table': table_name
+        'hoodie.datasource.hive_sync.table': table_name,
+        'hoodie.datasource.write.hive_style_partitioning': 'true'
     }
     if operation == 'FULL':
         hudi_options['hoodie.datasource.write.operation'] = 'bulk_insert'
@@ -23,12 +24,12 @@ def get_hudi_options(table_name, database_name, table_config, operation):
 
     if table_config['is_partitioned'] is False:
         extractor = 'org.apache.hudi.hive.NonPartitionedExtractor'
-        hudi_options['hoodie.datasource.hive_sync.partition_extractor_class'] = extractor
     else:
-        # TODO: Make sure we don't need to specify 'hoodie.datasource.hive_sync.partition_extractor_class'
-        #       In this scenario
-        partition_path = table_config['partition_path']
-        hudi_options['hoodie.datasource.write.partitionpath.field'] = partition_path
+        extractor = table_config['partition_extractor_class']
+        hudi_options['hoodie.datasource.write.partitionpath.field'] = table_config['partition_path']
+        hudi_options['hoodie.datasource.write.keygenerator.class'] = 'org.apache.hudi.keygen.ComplexKeyGenerator'
+
+    hudi_options['hoodie.datasource.hive_sync.partition_extractor_class'] = extractor
 
     #  Not required with latest Hudi libraries, should be inferred based on recordkey.field
     # 'hoodie.datasource.write.keygenerator.class': 'org.apache.hudi.keygen.ComplexKeyGenerator',

@@ -226,7 +226,7 @@ Resources:
                       "rule-id": "0",
                       "rule-name": "select-all",
                       "object-locator": {
-                          "schema-name": "%",
+                          "schema-name": "public",
                           "table-name": "%"
                       },
                       "rule-action": "include",
@@ -235,29 +235,6 @@ Resources:
                   {
                       "rule-type": "transformation",
                       "rule-id": "10",
-                      "rule-name": "columns-to-lower",
-                      "rule-target": "column",
-                      "object-locator": {
-                          "schema-name": "%",
-                          "table-name": "%",
-                          "column-name": "%"
-                      },
-                      "rule-action": "convert-lowercase"
-                  },
-                  {
-                      "rule-type": "transformation",
-                      "rule-id": "12",
-                      "rule-name": "table-to-lower",
-                      "rule-target": "table",
-                      "object-locator": {
-                          "schema-name": "%",
-                          "table-name": "%"
-                      },
-                      "rule-action": "convert-lowercase"
-                  },
-                  {
-                      "rule-type": "transformation",
-                      "rule-id": "14",
                       "rule-name": "add-trx-seq",
                       "rule-target": "column",
                       "object-locator": {
@@ -271,35 +248,6 @@ Resources:
                           "type": "string",
                           "length": 50
                       }
-                  },
-                  {
-                      "rule-type": "transformation",
-                      "rule-id": "16",
-                      "rule-name": "add-trx-op",
-                      "rule-target": "column",
-                      "object-locator": {
-                          "schema-name": "%",
-                          "table-name": "%"
-                      },
-                      "rule-action": "add-column",
-                      "value": "trx_op",
-                      "expression": "$AR_H_OPERATION",
-                      "data-type": {
-                          "type": "string",
-                          "length": 50
-                      }
-                  },
-                  {
-                    "rule-type": "transformation",
-                    "rule-id": "18",
-                    "rule-name": "remove-op",
-                    "rule-target": "column",
-                    "object-locator": {
-                        "schema-name": "%",
-                        "table-name": "%",
-                        "column-name": "Op"
-                    },
-                    "rule-action": "remove-column"
                   },
                   {
                       "rule-type": "post-processing",

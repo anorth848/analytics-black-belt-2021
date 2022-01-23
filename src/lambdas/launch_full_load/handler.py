@@ -1,20 +1,15 @@
 import boto3
 import json
-import logging
 import os
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
+from aws_lambda_powertools import Logger
+
+logger = Logger()
 
 sfn_arn = os.environ.get('STEPFUNCTION_ARN')
 config_table = os.environ.get('CONFIG_TABLE')
 runtime_bucket = os.environ.get('RUNTIME_BUCKET')
-
-log_level = os.environ.get('LOG_LEVEL', 'INFO')
-
-logging.basicConfig(
-    format='%(asctime)s | %(levelname)s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=log_level)
 
 
 def write_configs(execution_id, data):
@@ -72,17 +67,22 @@ def get_configs(identifier):
 def generate_sfn_input(identifier, config_s3_uri, configs):
     tables = []
     for table in configs['TableConfigs'].keys():
-        spark_submit_args = ['spark-submit']
-        if 'spark_conf' in configs['TableConfigs'][table] and 'full_load' in configs['TableConfigs'][table]['spark_conf']:
-            for k, v in configs['TableConfigs'][table]['spark_conf']['full_load'].items():
-                spark_submit_args.extend(['--conf', f'{k}={v}'])
+        if 'enabled' in configs['TableConfigs'][table] and configs['TableConfigs'][table]['enabled'] is True:
+            spark_submit_args = ['spark-submit']
+            if 'spark_conf' in configs['TableConfigs'][table] and 'full_load' in configs['TableConfigs'][table]['spark_conf']:
+                for k, v in configs['TableConfigs'][table]['spark_conf']['full_load'].items():
+                    spark_submit_args.extend(['--conf', f'{k}={v}'])
 
-        spark_submit_args.extend(['/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', table])
-        entry = {
-            'table_name': table,
-            'jar_step_args': spark_submit_args
-        }
-        tables.append(entry)
+            spark_submit_args.extend(['/mnt/var/lib/instance-controller/public/scripts/full_load.py', '--table_name', table])
+            entry = {
+                'table_name': table,
+                'jar_step_args': spark_submit_args
+            }
+            tables.append(entry)
+            logger.info(f'Table added to stepfunction input: {json.dumps(entry, indent=4)}')
+        else:
+            logger.info(f'Table {table} is disabled, skipping. To enable, set attribute "enabled": true')
+            continue
     #table_list = [x for x in configs['TableConfigs'].keys()]
     sfn_input = {
         'lambda': {
@@ -90,7 +90,7 @@ def generate_sfn_input(identifier, config_s3_uri, configs):
             'runtime_configs': config_s3_uri,
             'tables': tables,
             'emr': configs['EmrConfigs'],
-            'log_level': log_level
+            'log_level': os.environ.get('LOG_LEVEL', 'INFO')
         }
     }
     return sfn_input
@@ -106,13 +106,14 @@ def launch_sfn(execution_id, sfn_input):
     return response
 
 
+@logger.inject_lambda_context
 def handler(event, context=None):
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     identifier = event['Identifier']
     execution_id = f'{identifier}-full_load-{timestamp}'
     config_dict = get_configs(identifier)
     config_s3_uri = write_configs(execution_id, json.dumps(config_dict, indent=4))
-    logging.info(f'Runtime config written to: {config_s3_uri}.')
+    logger.info(f'Runtime config written to: {config_s3_uri}.')
     sfn_input = generate_sfn_input(identifier, config_s3_uri, config_dict)
     response = launch_sfn(execution_id, sfn_input)
 

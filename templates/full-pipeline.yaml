@@ -215,7 +215,8 @@ Resources:
           STEPFUNCTION_ARN: !Ref FullLoadStepFunction
           CONFIG_TABLE: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/config_table/name', '}}' ] ]
           RUNTIME_BUCKET: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/runtime/bucket/name', '}}' ] ]
-          LOG_LEVEL: 'INFO'
+          LOG_LEVEL: INFO
+          POWERTOOLS_SERVICE_NAME: LaunchFullSfn
       Handler: handler.handler
       Role: !GetAtt LaunchFullLoadLambdaRole.Arn
       Runtime: python3.9

@@ -16,9 +16,10 @@ mkdirs:
 	mkdir -p build/emr/jars
 
 download:
-	curl https://jdbc.postgresql.org/download/postgresql-42.3.1.jar -o build/emr/jars/postgresql-42.3.1.jar
-	curl https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3-bundle_2.12/0.10.0/hudi-spark3-bundle_2.12-0.10.0.jar -o  build/emr/jars/hudi-spark3-bundle_2.12-0.10.0.jar
-	curl https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.1.2/spark-avro_2.12-3.1.2.jar -o  build/emr/jars/spark-avro_2.12-3.1.2.jar
+	curl https://jdbc.postgresql.org/download/postgresql-42.3.1.jar -o build/emr/jars/postgresql-42.3.1.jar ;\
+	curl https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3-bundle_2.12/0.10.0/hudi-spark3-bundle_2.12-0.10.0.jar -o  build/emr/jars/hudi-spark3-bundle_2.12-0.10.0.jar ;\
+        curl https://repo1.maven.org/maven2/org/apache/hudi/hudi-utilities-bundle_2.12/0.10.0/hudi-utilities-bundle_2.12-0.10.0.jar -o build/emr/jars/hudi-utilities-bundle_2.12-0.10.0.jar ;\
+	curl https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.1.2/spark-avro_2.12-3.1.2.jar -o  build/emr/jars/spark-avro_2.12-3.1.2.jar ;
 
 scripts:
 	cp -r src/emr/ build/emr/
