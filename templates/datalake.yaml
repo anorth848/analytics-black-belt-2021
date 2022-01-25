@@ -97,15 +97,6 @@ Resources:
                   - Name: suffix
                     Value: !Sub '.parquet'
 
-#  BronzeLakeEventLambdaPermission:
-#    Type: AWS::Lambda::Permission
-#    Properties:
-#      Action: lambda:InvokeFunction
-#      FunctionName: !Ref BronzeLakeEventLambda
-#      Principal: "s3.amazonaws.com"
-#      #SourceArn: !GetAtt BronzeLakeBucket.Arn
-#      SourceAccount: !Ref AWS::AccountId
-
   BronzeLakeBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain

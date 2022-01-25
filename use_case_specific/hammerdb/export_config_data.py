@@ -44,7 +44,7 @@ def main():
     args = get_args()
     items = get_configs(args.table_name)
     print(items)
-    with open('full_load_configs.json', 'w') as f:
+    with open('runtime-configs.json', 'w') as f:
         f.write(json.dumps(items, indent=4))
 
 if __name__ == '__main__':

@@ -37,4 +37,4 @@ def get_spark(secret_id, table_name, jdbc_config):
     spark_jdbc = spark.read.format('jdbc') \
         .options(**jdbc_config)
 
-    return spark, spark_jdbc
+    return spark, spark_jdbc, dbname

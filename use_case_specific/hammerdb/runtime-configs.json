@@ -2,7 +2,9 @@
     {
         "secret": "da-black-belt-2021/rdbms/rds/primary/spark",
         "target_db_name": "rdbms_analytics",
+        "target_table_prefix": "hammerdb",
         "config": "database::config",
+        "source_db_name": "hammerdb",
         "identifier": "hammerdb"
     },
     {
@@ -13,8 +15,34 @@
         "config": "emr::config::full_load",
         "identifier": "hammerdb",
         "worker": {
-            "count": "2",
+            "count": "8",
             "instance_type": "r5.2xlarge"
+        },
+        "run_seed_hudi": true
+    },
+    {
+        "master": {
+            "instance_type": "m5.xlarge"
+        },
+        "step_parallelism": 4,
+        "config": "emr::config::seed_hudi",
+        "identifier": "hammerdb",
+        "worker": {
+            "count": "6",
+            "instance_type": "r5.2xlarge"
+        },
+        "run_continuous_hudi": true
+    },
+    {
+        "master": {
+            "instance_type": "m5.xlarge"
+        },
+        "step_parallelism": 10,
+        "config": "emr::config::continuous_hudi",
+        "identifier": "hammerdb",
+        "worker": {
+            "count": "2",
+            "instance_type": "r5.xlarge"
         }
     },
     {
@@ -25,7 +53,7 @@
         },
         "config": "table::public.customer",
         "identifier": "hammerdb",
-        "enabled": false,
+        "enabled": true,
         "spark_jdbc_config": {
             "dbtable": "public.customer",
             "partitionColumn": "c_id",
@@ -62,7 +90,7 @@
         },
         "config": "table::public.item",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true
     },
     {
         "hudi_config": {
@@ -72,20 +100,20 @@
         },
         "config": "table::public.new_order",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true
 
     },
     {
         "hudi_config": {
             "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
             "watermark": "trx_seq",
-            "is_partitioned": true,
+            "is_partitioned": false,
             "partition_path": "ol_w_id",
             "partition_extractor_class": "org.apache.hudi.hive.MultiPartKeysValueExtractor"
         },
         "config": "table::public.order_line",
         "identifier": "hammerdb",
-        "enabled": false,
+        "enabled": true,
         "spark_jdbc_config": {
             "dbtable": "public.order_line",
             "partitionColumn": "ol_w_id",
@@ -112,19 +140,19 @@
         },
         "config": "table::public.orders",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true
     },
     {
         "hudi_config": {
             "primary_key": "s_i_id,s_w_id",
             "watermark": "trx_seq",
-            "is_partitioned": true,
-            "partition_path": "ol_w_id",
+            "is_partitioned": false,
+            "partition_path": "s_w_id",
             "partition_extractor_class": "org.apache.hudi.hive.MultiPartKeysValueExtractor"
         },
         "config": "table::public.stock",
         "identifier": "hammerdb",
-        "enabled": false,
+        "enabled": true,
         "spark_jdbc_config": {
             "dbtable": "public.stock",
             "partitionColumn": "s_i_id",
@@ -156,6 +184,8 @@
     {
         "secret": "da-black-belt-2021/rdbms/hammerdb-fail",
         "target_db_name": "rdbms_analytics",
+        "target_table_prefix": "hammerdb",
+        "source_db_name": "hammerdb",
         "config": "database::config",
         "identifier": "hammerdb-fail"
     },

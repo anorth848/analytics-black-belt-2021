@@ -40,40 +40,6 @@ Resources:
       SSESpecification:
         SSEEnabled: TRUE
 
-  CdcStatusTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: glue_table_name
-          AttributeType: S
-        - AttributeName: trx_seq
-          AttributeType: S
-        - AttributeName: sparse_table_name
-          AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      KeySchema:
-        - AttributeName: glue_table_name
-          KeyType: HASH
-        - AttributeName: trx_seq
-          KeyType: RANGE
-      SSESpecification:
-        SSEEnabled: TRUE
-      GlobalSecondaryIndexes:
-        - IndexName: ItemsToProcess
-          KeySchema:
-            - AttributeName: sparse_table_name
-              KeyType: HASH
-            - AttributeName: trx_seq
-              KeyType: RANGE
-          Projection:
-            ProjectionType: INCLUDE
-            NonKeyAttributes:
-              - s3_uri
-      TimeToLiveSpecification:
-        AttributeName: expiry_epoch
-        Enabled: TRUE
-
   RuntimeBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain

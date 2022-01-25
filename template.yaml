@@ -147,11 +147,11 @@ Resources:
         DbUserNameSpark: !Ref DbUserNameSpark
         DbUserNameDms: !Ref DbUserNameDms
 
-  FullPipelineStack:
+  EmrPipelineStack:
     Type: AWS::Serverless::Application
     DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, CicdInfrastructureStack, DataLakeStack ]
     Properties:
-      Location: templates/full-pipeline.yaml
+      Location: templates/emr-pipeline.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
         CreateLambdaInVpc: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
@@ -173,15 +173,6 @@ Resources:
       Location: templates/datalake-bucketpolicy.yaml
       Parameters:
         ParentStack: !Ref AWS::StackName
-
-  IncrementalPipelineStack:
-    Type: AWS::Serverless::Application
-    DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, CicdInfrastructureStack, DataLakeStack ]
-    Properties:
-      Location: templates/incremental-pipeline.yaml
-      Parameters:
-        ParentStack: !Ref AWS::StackName
-        CreateLambdaInVpc: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
 
   #  This stack assumes you've enabled QuickSight in this account and have access from your IAM credentials
   #  and Parameter CreateQuickSightInfrastructure set to 'TRUE'

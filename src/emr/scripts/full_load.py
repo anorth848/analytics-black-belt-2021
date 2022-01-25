@@ -3,7 +3,6 @@ import json
 import logging
 import os
 from datetime import datetime
-from hudi import get_hudi_options
 from jdbc import get_spark
 
 lake_location_uri = os.path.join(os.environ['BRONZE_LAKE_S3URI'], '')
@@ -25,7 +24,7 @@ def get_args():
 def main():
     args = get_args()
     table_name = args.table_name
-    f = open('/mnt/var/lib/instance-controller/public/runtime_configs/full_load_configs.json')
+    f = open('/mnt/var/lib/instance-controller/public/runtime_configs/configs.json')
     config_dict = json.load(f)
     logging.debug(json.dumps(config_dict, indent=4))
 
@@ -33,14 +32,19 @@ def main():
     table_config = config_dict['TableConfigs'][table_name]
     secret_id = database_config['secret']
     glue_database = database_config['target_db_name']
-    glue_table_name = f"{database_config['identifier']}_{table_name.replace('.','_')}"
     spark_jdbc_config = table_config['spark_jdbc_config'] if 'spark_jdbc_config' in table_config else None
 
-    hudi_options = get_hudi_options(glue_table_name, glue_database, table_config['hudi_config'], 'FULL')
-    spark, spark_jdbc = get_spark(secret_id, table_name, spark_jdbc_config)
+    spark, spark_jdbc, source_db = get_spark(secret_id, table_name, spark_jdbc_config)
     spark.sparkContext.setLogLevel(log_level)
+    table_prefix = f"{source_db}/{table_name.replace('.','/')}"
 
-    precombine_field = hudi_options['hoodie.datasource.write.precombine.field']
+
+    precombine_field = table_config['hudi_config']['watermark']
+
+    if table_config['hudi_config']['is_partitioned'] is True:
+        part_cols = table_config['hudi_config']['partition_path'].split(',')
+    else:
+        part_cols = None
 
     if precombine_field == 'trx_seq':
         # Downstream we will merge CDC using AR_H_CHANGE_SEQ as the key if trx_seq is the precombine field
@@ -62,8 +66,12 @@ def main():
     """) \
         .write \
         .format('parquet') \
-        .mode('overwrite') \
-        .save(os.path.join('lake_location_uri', glue_database, glue_table_name))
+        .mode('overwrite')
+
+    if part_cols is not None:
+        df = df.partitionBy(*part_cols)
+
+    df.save(os.path.join(lake_location_uri, 'full', table_prefix))
 
     # final_df.write \
     #     .mode('overwrite') \

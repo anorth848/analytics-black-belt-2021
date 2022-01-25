@@ -1,5 +1,5 @@
 {
-    "Comment": "Launch the EMR cluster and perform a full load",
+    "Comment": "Launch the EMR cluster and run job steps",
     "StartAt": "LaunchEMR",
     "States": {
         "LaunchEMR": {
@@ -143,9 +143,9 @@
                 }
             ],
             "Iterator": {
-                "StartAt": "FullLoadStep",
+                "StartAt": "AddJobStep",
                 "States": {
-                    "FullLoadStep": {
+                    "AddJobStep": {
                         "Type": "Task",
                         "InputPath": "$",
                         "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
@@ -240,7 +240,7 @@
             "Resource": "arn:aws:states:::sns:publish",
             "Parameters": {
                 "TopicArn": "${RuntimeSnsTopicArn}",
-                "Subject.$": "States.Format('FAILURE | Full Load | {} | {}', $.lambda.identifier, $.exception.Error)",
+                "Subject.$": "States.Format('FAILURE | {} | {} | {}', $.lambda.identifier, $.lambda.pipeline_type, $.exception.Error)",
                 "Message.$": "States.Format('Execution: {} Message: {} LogFile: {}', $$.Execution.Id, $.exception.Cause.Step.Status.FailureDetails.Message, $.exception.Cause.Step.Status.FailureDetails.LogFile)"
             },
             "Next": "TerminateCluster",
@@ -251,7 +251,7 @@
             "Resource": "arn:aws:states:::sns:publish",
             "Parameters": {
                 "TopicArn": "${RuntimeSnsTopicArn}",
-                "Subject.$": "States.Format('SUCCESS | Full Load | {}', $.lambda.identifier)",
+                "Subject.$": "States.Format('SUCCESS | {} | {}', $.lambda.identifier, $.lambda.pipeline_type)",
                 "Message.$": "States.Format('Execution: {} Succeeded.', $$.Execution.Id)"
             },
             "Next": "TerminateCluster",

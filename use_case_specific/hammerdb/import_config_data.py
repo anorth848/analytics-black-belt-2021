@@ -28,7 +28,7 @@ def write_configs(table_name, items):
 
 def main():
     args = get_args()
-    with open('full_load_configs.json') as f:
+    with open('runtime-configs.json') as f:
         items = json.load(f)
         write_configs(args.table_name, items)
 
