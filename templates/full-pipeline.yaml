@@ -43,6 +43,7 @@ Resources:
       Description: Role for EMR EC2 instances
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
       MaxSessionDuration: 43200
       Policies:
         - PolicyName: FullLoadPolicy
@@ -76,7 +77,22 @@ Resources:
           CatalogId: !Ref AWS::AccountId
           Name: !Join ['', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/glue/db/name', '}}' ] ]
 
-  EmrLakeLocationPermissions:
+  EmrBronzeLakeLocationPermissions:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrEc2Role}'
+      Permissions:
+        - DATA_LOCATION_ACCESS
+      Resource:
+        DataLocationResource:
+          CatalogId: !Ref AWS::AccountId
+          S3Resource: !Join ["/", [
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/bronze/arn}}',
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}'
+          ] ]
+
+  EmrSilverLakeLocationPermissions:
     Type: AWS::LakeFormation::Permissions
     Properties:
       DataLakePrincipal:
@@ -151,7 +167,8 @@ Resources:
         EmrServiceRole: !Ref EmrServiceRole
         EmrJobFlowRole: !Ref EmrEc2InstanceProfile
         RuntimeSnsTopicArn: !Sub '{{resolve:ssm:/${ParentStack}/runtime/sns/topic/arn}}'
-        LakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/silver/prefix_uri', '}}' ] ]
+        SilverLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/silver/prefix_uri', '}}' ] ]
+        BronzeLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/bronze/prefix_uri', '}}' ] ]
       Role: !GetAtt FullLoadStepFunctionRole.Arn
       Type: STANDARD
 

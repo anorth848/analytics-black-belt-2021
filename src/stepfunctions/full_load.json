@@ -9,7 +9,7 @@
             "Parameters": {
                 "Name.$": "$$.Execution.Name",
                 "VisibleToAllUsers": true,
-                "ReleaseLabel": "emr-6.4.0",
+                "ReleaseLabel": "emr-6.5.0",
                 "EbsRootVolumeSize": 10,
                 "Tags": [
                     {
@@ -103,7 +103,7 @@
                         "Properties":{
                             "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
                             "spark.sql.hive.convertMetastore": "false",
-                            "spark.jars": "/usr/lib/spark/jars/hudi-spark3-bundle_2.12-0.10.0.jar,/usr/lib/spark/jars/spark-avro_2.12-3.1.2.jar,/usr/lib/spark/jars/hudi-utilities-bundle_2.12-0.10.0.jar"
+                            "spark.jars": "/usr/lib/hudi/hudi-spark-bundle.jar,/usr/lib/spark/external/lib/spark-avro.jar,/usr/lib/hudi/hudi-utilities-bundle.jar"
                         }
                     },
                     {
@@ -114,7 +114,8 @@
                              "Classification": "export",
                              "Properties": {
                                  "LOG_LEVEL.$": "$.log_level",
-                                 "LAKE_S3URI": "${LakeS3Uri}"
+                                 "BRONZE_LAKE_S3URI": "${BronzeLakeS3Uri}",
+                                 "SILVER_LAKE_S3URI": "${SilverLakeS3Uri}"
                              }
                            }
                         ]

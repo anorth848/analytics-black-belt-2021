@@ -13,7 +13,7 @@
         "config": "emr::config::full_load",
         "identifier": "hammerdb",
         "worker": {
-            "count": "8",
+            "count": "2",
             "instance_type": "r5.2xlarge"
         }
     },
@@ -25,7 +25,7 @@
         },
         "config": "table::public.customer",
         "identifier": "hammerdb",
-        "enabled": true,
+        "enabled": false,
         "spark_jdbc_config": {
             "dbtable": "public.customer",
             "partitionColumn": "c_id",
@@ -62,7 +62,7 @@
         },
         "config": "table::public.item",
         "identifier": "hammerdb",
-        "enabled": true
+        "enabled": false
     },
     {
         "hudi_config": {
@@ -72,7 +72,7 @@
         },
         "config": "table::public.new_order",
         "identifier": "hammerdb",
-        "enabled": true
+        "enabled": false
 
     },
     {
@@ -85,7 +85,7 @@
         },
         "config": "table::public.order_line",
         "identifier": "hammerdb",
-        "enabled": true,
+        "enabled": false,
         "spark_jdbc_config": {
             "dbtable": "public.order_line",
             "partitionColumn": "ol_w_id",
@@ -112,7 +112,7 @@
         },
         "config": "table::public.orders",
         "identifier": "hammerdb",
-        "enabled": true
+        "enabled": false
     },
     {
         "hudi_config": {
@@ -124,7 +124,7 @@
         },
         "config": "table::public.stock",
         "identifier": "hammerdb",
-        "enabled": true,
+        "enabled": false,
         "spark_jdbc_config": {
             "dbtable": "public.stock",
             "partitionColumn": "s_i_id",

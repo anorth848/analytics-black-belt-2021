@@ -3,7 +3,7 @@ from util import get_secret
 from pyspark.sql import SparkSession
 
 
-def get_spark_jdbc(secret_id, table_name, jdbc_config):
+def get_spark(secret_id, table_name, jdbc_config):
     jdbc_config = jdbc_config if jdbc_config is not None else {}
     secret = get_secret(secret_id)
     engine = secret['engine']
@@ -34,8 +34,7 @@ def get_spark_jdbc(secret_id, table_name, jdbc_config):
         .builder \
         .appName(f'{dbname}.{table_name}_to_HudiLake') \
         .getOrCreate()
-
     spark_jdbc = spark.read.format('jdbc') \
         .options(**jdbc_config)
 
-    return spark_jdbc
+    return spark, spark_jdbc

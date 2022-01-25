@@ -161,8 +161,8 @@ Resources:
         ServiceAccessRoleArn: !GetAtt DmsS3EndpointRole.Arn
         CompressionType: gzip
       ExtraConnectionAttributes: >
-        datePartitionEnabled=true;datePartitionDelimiter=NONE;dataFormat=parquet;parquetTimestampInMillisecond=true;cdcMinFileSize=1048576;cdcMaxBatchInterval=300;
-
+        dataFormat=parquet;parquetTimestampInMillisecond=true;cdcMinFileSize=1048576;cdcMaxBatchInterval=300;
+      # datePartitionEnabled=true;datePartitionDelimiter=NONE;dataFormat=parquet;parquetTimestampInMillisecond=true;cdcMinFileSize=1048576;cdcMaxBatchInterval=300;
   RdsCertificateArnParameter:
     Type: AWS::SSM::Parameter
     Properties:

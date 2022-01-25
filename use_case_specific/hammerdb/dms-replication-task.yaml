@@ -250,6 +250,22 @@ Resources:
                       }
                   },
                   {
+                      "rule-type": "transformation",
+                      "rule-id": "12",
+                      "rule-name": "add-hudi-deleted",
+                      "rule-target": "column",
+                      "object-locator": {
+                          "schema-name": "%",
+                          "table-name": "%"
+                      },
+                      "rule-action": "add-column",
+                      "value": "_hoodie_is_deleted",
+                      "expression": "CASE WHEN $AR_H_OPERATION = 'DELETE' THEN TRUE ELSE FALSE END",
+                      "data-type": {
+                          "type": "boolean"
+                      }
+                  },
+                  {
                       "rule-type": "post-processing",
                       "rule-id": "20",
                       "rule-name": "add-tags",
