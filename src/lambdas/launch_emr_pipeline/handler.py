@@ -10,8 +10,8 @@ logger = Logger()
 sfn_arn = os.environ.get('STEPFUNCTION_ARN')
 config_table = os.environ.get('CONFIG_TABLE')
 runtime_bucket = os.environ.get('RUNTIME_BUCKET')
-bronze_lake_uri = os.path.join(os.environ['BRONZE_LAKE_S3URI'], '')
-silver_lake_uri = os.path.join(os.environ['SILVER_LAKE_S3URI'], '')
+bronze_lake_uri = os.environ['BRONZE_LAKE_S3URI']
+silver_lake_uri = os.environ['SILVER_LAKE_S3URI']
 
 
 def write_configs(execution_id, data):
@@ -70,40 +70,52 @@ def get_configs(identifier, pipeline_type):
     return configs
 
 
-def get_hudi_configs(table_name, database_name, table_config, pipeline_type):
+def get_hudi_configs(source_table_name, target_table_name, database_name, table_config, pipeline_type):
     primary_key = table_config['primary_key']
     precombine_field = table_config['watermark']
     glue_database = database_name
 
-    if pipeline_type == 'seed_hudi':
-        source_s3uri = f"{bronze_lake_uri}/full/{table_name.replace('_', '/')}"
-    # assume continuous(cdc) if not initial seed
-    else:
-        source_s3uri = f"{bronze_lake_uri}/cdc/{table_name.replace('_', '/')}"
-
     hudi_conf = {
-        'hoodie.table.name': table_name,
+        'hoodie.table.name': target_table_name,
         'hoodie.datasource.write.recordkey.field': primary_key,
         'hoodie.datasource.write.precombine.field': precombine_field,
         'hoodie.datasource.hive_sync.database': glue_database,
         'hoodie.datasource.hive_sync.enable': 'true',
-        'hoodie.datasource.hive_sync.table': table_name,
-        'hoodie.datasource.write.hive_style_partitioning': 'true',
-        'hoodie.deltastreamer.source.dfs.root': source_s3uri
+        'hoodie.datasource.hive_sync.table': target_table_name
     }
 
+    if pipeline_type == 'seed_hudi':
+        source_s3uri = os.path.join(bronze_lake_uri, 'full', source_table_name.replace('_', '/', 2), '')
+        hudi_conf['hoodie.datasource.write.operation'] = 'bulk_insert'
+        hudi_conf['hoodie.bulkinsert.sort.mode'] = 'PARTITION_SORT'
+    elif pipeline_type in ['incremental_hudi', 'continuous_hudi']:
+        source_s3uri = os.path.join(bronze_lake_uri, 'cdc', target_table_name.replace('_', '/', 2), '')
+        hudi_conf['hoodie.datasource.write.operation'] = 'upsert'
+    else:
+        raise ValueError(f'Operation {pipeline_type} not yet supported.')
+
+    hudi_conf['hoodie.deltastreamer.source.dfs.root'] = source_s3uri
+
     if table_config['is_partitioned'] is False:
-        extractor = 'org.apache.hudi.hive.NonPartitionedExtractor'
+        partition_extractor = 'org.apache.hudi.hive.NonPartitionedExtractor'
         key_generator = 'org.apache.hudi.keygen.NonpartitionedKeyGenerator'
     else:
-        extractor = table_config['partition_extractor_class']
+        partition_extractor = table_config['partition_extractor_class']
+        hudi_conf['hoodie.datasource.write.hive_style_partitioning'] = 'true'
         hudi_conf['hoodie.datasource.write.partitionpath.field'] = table_config['partition_path']
-        key_generator = 'org.apache.hudi.keygen.ComplexKeyGenerator'
+        hudi_conf['hoodie.datasource.hive_sync.partition_fields'] = table_config['partition_path']
+        if len(primary_key.split(',')) > 1:
+            key_generator = 'org.apache.hudi.keygen.ComplexKeyGenerator'
+        else:
+            key_generator = 'org.apache.hudi.keygen.SimpleKeyGenerator'
 
-    hudi_conf['hoodie.datasource.hive_sync.partition_extractor_class'] = extractor
     hudi_conf['hoodie.datasource.write.keygenerator.class'] = key_generator
-    #  Not required with latest Hudi libraries, should be inferred based on recordkey.field
-    # 'hoodie.datasource.write.keygenerator.class': 'org.apache.hudi.keygen.ComplexKeyGenerator',
+
+    if 'transformer_sql' in table_config:
+        hudi_conf['hoodie.deltastreamer.transformer.sql'] = table_config['transformer_sql']
+
+    hudi_conf['hoodie.datasource.hive_sync.partition_extractor_class'] = partition_extractor
+
     logger.debug(json.dumps(hudi_conf, indent=4))
 
     return hudi_conf
@@ -127,11 +139,20 @@ def generate_sfn_input(identifier, config_s3_uri, configs, pipeline_type):
                     'jar_step_args': spark_submit_args
                 }
 
-            elif pipeline_type in ['seed_hudi', 'continuous_hudi']:
+            elif pipeline_type in ['seed_hudi', 'continuous_hudi', 'incremental_hudi']:
                 target_db_name = configs['DatabaseConfig']['target_db_name']
-                target_table_name = '_'.join([configs['DatabaseConfig']['target_table_prefix'], table.replace('.', '_')])
-                if 'spark_conf' in config and 'seed_hudi' in config['spark_conf']:
-                    for k, v in config['spark_conf']['seed_hudi'].items():
+                source_table_name = '_'.join(
+                    [configs['DatabaseConfig']['target_table_prefix'], table.replace('.', '_')])
+
+                # Add the ability to redirect to custom target table names
+                if 'override_target_table_name' in config:
+                    target_table_name = config['override_target_table_name']
+                # Otherwise infer target table name from source
+                else:
+                    target_table_name = source_table_name
+
+                if 'spark_conf' in config and pipeline_type in config['spark_conf']:
+                    for k, v in config['spark_conf'][pipeline_type].items():
                         spark_submit_args.extend(['--conf', f'{k}={v}'])
 
                 spark_submit_args.extend([
@@ -141,12 +162,20 @@ def generate_sfn_input(identifier, config_s3_uri, configs, pipeline_type):
                     '--source-class', 'org.apache.hudi.utilities.sources.ParquetDFSSource',
                     '--enable-hive-sync',
                     '--target-table', target_table_name,
-                    '--target-base-path', os.path.join(silver_lake_uri, target_table_name)
+                    '--target-base-path', os.path.join(silver_lake_uri, target_table_name, ''),
+                    '--source-ordering-field', config['hudi_config']['watermark']
                 ])
+
+                if 'transformer_class' in config['hudi_config']:
+                    spark_submit_args.extend(['--transformer-class', config['hudi_config']['transformer_class']])
+
+                if pipeline_type == 'seed_hudi':
+                    spark_submit_args.extend(['--op', 'BULK_INSERT'])
+
                 if pipeline_type == 'continuous_hudi':
                     spark_submit_args.extend(['--continuous'])
 
-                hudi_configs = get_hudi_configs(target_table_name, target_db_name, config['hudi_config'], pipeline_type)
+                hudi_configs = get_hudi_configs(source_table_name, target_table_name, target_db_name, config['hudi_config'], pipeline_type)
                 for k, v in hudi_configs.items():
                     spark_submit_args.extend(['--hoodie-conf', f'{k}={v}'])
 

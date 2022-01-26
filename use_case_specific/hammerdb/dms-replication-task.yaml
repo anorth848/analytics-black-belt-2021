@@ -235,6 +235,18 @@ Resources:
                   {
                       "rule-type": "transformation",
                       "rule-id": "10",
+                      "rule-name": "add-order-line-prefix",
+                      "rule-target": "table",
+                      "object-locator": {
+                          "schema-name": "%",
+                          "table-name": "order_line_part%"
+                      },
+                      "rule-action": "add-prefix",
+                      "value": "order_line/"
+                  },
+                  {
+                      "rule-type": "transformation",
+                      "rule-id": "12",
                       "rule-name": "add-trx-seq",
                       "rule-target": "column",
                       "object-locator": {
@@ -251,7 +263,7 @@ Resources:
                   },
                   {
                       "rule-type": "transformation",
-                      "rule-id": "12",
+                      "rule-id": "14",
                       "rule-name": "add-hudi-deleted",
                       "rule-target": "column",
                       "object-locator": {
