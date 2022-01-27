@@ -4,12 +4,11 @@
         "target_db_name": "rdbms_analytics",
         "target_table_prefix": "hammerdb",
         "config": "database::config",
-        "source_db_name": "hammerdb",
         "identifier": "hammerdb"
     },
     {
         "master": {
-            "instance_type": "m5.2xlarge"
+            "instance_type": "m5.xlarge"
         },
         "step_parallelism": 4,
         "config": "emr::config::full_load",
@@ -35,14 +34,14 @@
     },
     {
         "master": {
-            "instance_type": "m5.xlarge"
+            "instance_type": "m4.large"
         },
         "step_parallelism": 10,
         "config": "emr::config::continuous_hudi",
         "identifier": "hammerdb",
         "worker": {
-            "count": "2",
-            "instance_type": "r5.xlarge"
+            "count": "8",
+            "instance_type": "m4.large"
         }
     },
     {
@@ -65,7 +64,7 @@
         },
         "config": "table::public.customer",
         "identifier": "hammerdb",
-        "enabled": false,
+        "enabled": true,
         "spark_jdbc_config": {
             "dbtable": "public.customer",
             "partitionColumn": "c_id",
@@ -75,12 +74,24 @@
         },
         "spark_conf": {
             "full_load": {
-                "spark.executor.cores": "2",
-                "spark.executor.memory": "4g",
+                "spark.executor.cores": "1",
+                "spark.executor.memory": "2g",
                 "spark.executor.heartbeatInterval": "30s",
                 "spark.network.timeout": "600s",
                 "spark.dynamicAllocation.enabled": "false",
                 "spark.executor.instances": "8"
+            },
+            "incremental_hudi": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "2g",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "6"
+            },
+            "continuous_hudi": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "2g",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "6"
             }
         }
     },
@@ -92,7 +103,14 @@
         },
         "config": "table::public.district",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true,
+        "spark_conf": {
+            "continuous_hudi": {
+                "spark.executor.cores": "1",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "2"
+            }
+        }
     },
     {
         "hudi_config": {
@@ -102,7 +120,14 @@
         },
         "config": "table::public.item",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true,
+        "spark_conf": {
+            "continuous_hudi": {
+                "spark.executor.cores": "1",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "2"
+            }
+        }
     },
     {
         "hudi_config": {
@@ -112,23 +137,26 @@
         },
         "config": "table::public.new_order",
         "identifier": "hammerdb",
-        "enabled": false
-
+        "enabled": true,
+        "spark_conf": {
+            "continuous_hudi": {
+                "spark.executor.cores": "1",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "2"
+            }
+        }
     },
     {
         "hudi_config": {
             "primary_key": "ol_w_id,ol_d_id,ol_o_id,ol_number",
             "watermark": "trx_seq",
             "is_partitioned": true,
-            "partition_path": "part_w_id",
-            "partition_extractor_class": "org.apache.hudi.hive.MultiPartKeysValueExtractor",
-            "transformer_class": "org.apache.hudi.utilities.transform.SqlQueryBasedTransformer",
-            "transformer_sql": "SELECT s.*, concat(cast(s.ol_w_id as string), '/') as part_w_id FROM <SRC> s"
+            "partition_path": "ol_w_id",
+            "partition_extractor_class": "org.apache.hudi.hive.MultiPartKeysValueExtractor"
         },
         "config": "table::public.order_line",
         "identifier": "hammerdb",
         "enabled": true,
-        "override_target_table_name": "hammerdb_public_order_line2",
         "spark_jdbc_config": {
             "dbtable": "public.order_line",
             "partitionColumn": "ol_w_id",
@@ -151,7 +179,15 @@
                 "spark.executor.heartbeatInterval": "30s",
                 "spark.network.timeout": "600s",
                 "spark.dynamicAllocation.minExecutors": "2",
-                "spark.dynamicAllocation.maxExecutors": "16"
+                "spark.dynamicAllocation.maxExecutors": "12"
+            },
+            "continuous_hudi": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "4g",
+                "spark.executor.heartbeatInterval": "30s",
+                "spark.network.timeout": "300s",
+                "spark.dynamicAllocation.minExecutors": "2",
+                "spark.dynamicAllocation.maxExecutors": "10"
             }
         }
     },
@@ -163,19 +199,26 @@
         },
         "config": "table::public.orders",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true,
+        "spark_conf": {
+            "continuous_hudi": {
+                "spark.executor.cores": "1",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "2"
+            }
+        }
     },
     {
         "hudi_config": {
             "primary_key": "s_i_id,s_w_id",
             "watermark": "trx_seq",
-            "is_partitioned": false,
+            "is_partitioned": true,
             "partition_path": "s_w_id",
             "partition_extractor_class": "org.apache.hudi.hive.MultiPartKeysValueExtractor"
         },
         "config": "table::public.stock",
         "identifier": "hammerdb",
-        "enabled": false,
+        "enabled": true,
         "spark_jdbc_config": {
             "dbtable": "public.stock",
             "partitionColumn": "s_i_id",
@@ -194,11 +237,19 @@
             },
             "incremental_hudi": {
                 "spark.executor.cores": "2",
-                "spark.executor.memory": "4g",
+                "spark.executor.memory": "6g",
                 "spark.executor.heartbeatInterval": "30s",
                 "spark.network.timeout": "600s",
                 "spark.dynamicAllocation.minExecutors": "2",
                 "spark.dynamicAllocation.maxExecutors": "8"
+            },
+            "continuous_hudi": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "4g",
+                "spark.executor.heartbeatInterval": "30s",
+                "spark.network.timeout": "300s",
+                "spark.dynamicAllocation.minExecutors": "2",
+                "spark.dynamicAllocation.maxExecutors": "6"
             }
         }
     },
@@ -210,13 +261,19 @@
         },
         "config": "table::public.warehouse",
         "identifier": "hammerdb",
-        "enabled": false
+        "enabled": true,
+        "spark_conf": {
+            "continuous_hudi": {
+                "spark.executor.cores": "1",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "2"
+            }
+        }
     },
     {
         "secret": "da-black-belt-2021/rdbms/hammerdb-fail",
         "target_db_name": "rdbms_analytics",
         "target_table_prefix": "hammerdb",
-        "source_db_name": "hammerdb",
         "config": "database::config",
         "identifier": "hammerdb-fail"
     },
@@ -243,10 +300,14 @@
         "hudi_config": {
             "primary_key": "ol_w_id, ol_d_id, ol_o_id, ol_number",
             "watermark": "trx_seq",
-            "is_partitioned": true
+            "is_partitioned": true,
+            "partition_path": "part_w_id",
+            "transformer_class": "org.apache.hudi.utilities.transform.SqlQueryBasedTransformer",
+            "transformer_sql": "SELECT s.*, concat(cast(s.ol_w_id as string), '/') as part_w_id FROM <SRC> s"
         },
         "config": "table::public.order_line_fail",
         "identifier": "hammerdb-fail",
+        "override_target_table_name": "hammerdb_public_order_line2",
         "enabled": true,
         "spark_jdbc_config": {
             "partitionColumn": "ol_w_id",
