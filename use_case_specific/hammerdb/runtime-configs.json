@@ -56,7 +56,7 @@
                 "instance_type": "m5.xlarge"
             },
             "worker": {
-                "count": "12",
+                "count": "6",
                 "instance_type": "r5.xlarge"
             },
             "step_parallelism": 10
@@ -78,7 +78,7 @@
         },
         "next_pipeline": {
             "pipeline_type": "continuous_hudi",
-            "enabled": false
+            "enabled": true
         }
     },
     {
@@ -198,6 +198,14 @@
                 "spark.dynamicAllocation.enabled": "false",
                 "spark.executor.instances": "12"
             },
+            "seed_hudi": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "8g",
+                "spark.executor.heartbeatInterval": "90s",
+                "spark.network.timeout": "900s",
+                "spark.dynamicAllocation.enabled": "false",
+                "spark.executor.instances": "12"
+            },
             "incremental_hudi": {
                 "spark.executor.cores": "2",
                 "spark.executor.memory": "6g",
@@ -257,6 +265,14 @@
                 "spark.executor.memory": "6g",
                 "spark.executor.heartbeatInterval": "120s",
                 "spark.network.timeout": "1200s",
+                "spark.dynamicAllocation.enabled": "false",
+                "spark.executor.instances": "10"
+            },
+            "seed_hudi": {
+                "spark.executor.cores": "2",
+                "spark.executor.memory": "6g",
+                "spark.executor.heartbeatInterval": "90s",
+                "spark.network.timeout": "900s",
                 "spark.dynamicAllocation.enabled": "false",
                 "spark.executor.instances": "10"
             },
