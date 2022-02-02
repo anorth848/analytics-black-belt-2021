@@ -1,6 +1,7 @@
 import boto3
 import json
 import os
+import backoff
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
 from aws_lambda_powertools import Logger
@@ -12,6 +13,8 @@ config_table = os.environ.get('CONFIG_TABLE')
 runtime_bucket = os.environ.get('RUNTIME_BUCKET')
 bronze_lake_uri = os.environ['BRONZE_LAKE_S3URI']
 silver_lake_uri = os.environ['SILVER_LAKE_S3URI']
+sfn_client = boto3.client('stepfunctions')
+topic_arn = os.environ.get('TOPIC_ARN')
 
 
 def write_configs(execution_id, data):
@@ -27,23 +30,23 @@ def munge_configs(items, pipeline_type):
     configs = {
         'DatabaseConfig': {},
         'TableConfigs': {},
-        'EmrConfigs': {}
+        'PipelineConfig': {}
     }
     for config in items:
         if config['config'] == 'database::config':
             configs['DatabaseConfig'] = config
         elif config['config'].startswith('table::'):
             configs['TableConfigs'][config['config'].split('::')[-1]] = config
-        elif config['config'].startswith('emr::config::'):
+        elif config['config'].startswith('pipeline::config::'):
             if config['config'].split('::')[-1] == pipeline_type:
-                configs['EmrConfigs'] = config
-                configs['EmrConfigs']['step_parallelism'] = int(config['step_parallelism'])
-                configs['EmrConfigs']['worker']['count'] = int(config['worker']['count'])
+                configs['PipelineConfig'] = config
+                configs['PipelineConfig']['emr_config']['step_parallelism'] = int(config['emr_config']['step_parallelism'])
+                configs['PipelineConfig']['emr_config']['worker']['count'] = int(config['emr_config']['worker']['count'])
                 logger.info(f'Pipeline type: {pipeline_type}')
             else:
                 pass
         else:
-            raise RuntimeError('Unsupported config type')
+            logger.warning(f'Unsupported config type: {config}')
 
     return configs
 
@@ -121,7 +124,7 @@ def get_hudi_configs(source_table_name, target_table_name, database_name, table_
     return hudi_conf
 
 
-def generate_sfn_input(identifier, config_s3_uri, configs, pipeline_type):
+def generate_sfn_input(identifier, config_s3_uri, configs, pipeline_type, lambda_context):
     tables = []
     for table in configs['TableConfigs'].keys():
         config = configs['TableConfigs'][table]
@@ -172,12 +175,12 @@ def generate_sfn_input(identifier, config_s3_uri, configs, pipeline_type):
                 if pipeline_type == 'seed_hudi':
                     spark_submit_args.extend(['--op', 'BULK_INSERT'])
 
-                if pipeline_type == 'continuous_hudi':
-                    spark_submit_args.extend(['--continuous'])
-
                 hudi_configs = get_hudi_configs(source_table_name, target_table_name, target_db_name, config['hudi_config'], pipeline_type)
                 for k, v in hudi_configs.items():
                     spark_submit_args.extend(['--hoodie-conf', f'{k}={v}'])
+
+                if pipeline_type == 'continuous_hudi':
+                    spark_submit_args.extend(['--continuous'])
 
                 entry = {
                     'table_name': table,
@@ -193,20 +196,45 @@ def generate_sfn_input(identifier, config_s3_uri, configs, pipeline_type):
             continue
     sfn_input = {
         'lambda': {
+            'function_name': lambda_context.function_name,
             'identifier': identifier,
             'pipeline_type': pipeline_type,
             'runtime_configs': config_s3_uri,
             'tables': tables,
-            'emr': configs['EmrConfigs'],
+            'pipeline': configs['PipelineConfig'],
             'log_level': os.environ.get('LOG_LEVEL', 'INFO')
         }
     }
     return sfn_input
 
 
+@backoff.on_exception(backoff.expo, exception=RuntimeError, max_time=60)
+def check_concurrent(pipeline_type):
+    #  Define a map which allows launching pipelines that can run concurrently (that don't conflict with each other)
+    allowed_concurrent = {
+        'full_load': ['incremental_hudi', 'continuous_hudi'],
+        'seed_hudi': [],
+        'continuous_hudi': ['full_load'],
+        'incremental_hudi': ['full_load']
+    }
+    paginator = sfn_client.get_paginator('list_executions')
+    pages = paginator.paginate(
+        stateMachineArn=sfn_arn,
+        statusFilter='RUNNING'
+    )
+    for page in pages:
+        for execution in page['executions']:
+            exec_arn = execution['executionArn']
+            response = sfn_client.describe_execution(executionArn=exec_arn)
+            sfn_input = json.loads(response['input'])
+            if sfn_input['lambda']['pipeline_type'] not in allowed_concurrent[pipeline_type]:
+                raise RuntimeError(
+                    f"Pipeline type {pipeline_type} cannot run due to in-progress pipeline {exec_arn}"
+                )
+
+
 def launch_sfn(execution_id, sfn_input):
-    client = boto3.client('stepfunctions')
-    response = client.start_execution(
+    response = sfn_client.start_execution(
         stateMachineArn=sfn_arn,
         name=execution_id,
         input=json.dumps(sfn_input)
@@ -214,28 +242,43 @@ def launch_sfn(execution_id, sfn_input):
     return response
 
 
+def send_sns(subject, message):
+    sns_client = boto3.client('sns')
+    sns_client.publish(
+        TopicArn=topic_arn,
+        Subject=subject,
+        Message=message
+    )
+
+
 @logger.inject_lambda_context
 def handler(event, context=None):
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     identifier = event['Identifier']
     pipeline_type = event['PipelineType']
-    execution_id = f'{identifier}-{pipeline_type}-{timestamp}'
-    config_dict = get_configs(identifier, pipeline_type)
-    config_s3_uri = write_configs(execution_id, json.dumps(config_dict, indent=4))
-    logger.info(f'Runtime config written to: {config_s3_uri}.')
-    sfn_input = generate_sfn_input(identifier, config_s3_uri, config_dict, pipeline_type)
-    response = launch_sfn(execution_id, sfn_input)
+    try:
+        check_concurrent(pipeline_type)
+        execution_id = f'{identifier}-{pipeline_type}-{timestamp}'
+        config_dict = get_configs(identifier, pipeline_type)
+        config_s3_uri = write_configs(execution_id, json.dumps(config_dict, indent=4))
+        logger.info(f'Runtime config written to: {config_s3_uri}.')
+        sfn_input = generate_sfn_input(identifier, config_s3_uri, config_dict, pipeline_type, context)
+        response = launch_sfn(execution_id, sfn_input)
 
-    return {
-        "statusCode": response['ResponseMetadata']['HTTPStatusCode'],
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps({
-            "executionArn ": response['executionArn']
-        })
-    }
-
+        return {
+            "statusCode": response['ResponseMetadata']['HTTPStatusCode'],
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "executionArn ": response['executionArn']
+            })
+        }
+    except Exception as inst:
+        subject = f'FAILURE | {identifier} | {pipeline_type} | Lambda Launch'
+        message = f'Launch EMR Pipeline failed: {inst}'
+        send_sns(subject, message)
+        raise
 
 if __name__ == '__main__':
     test_event={

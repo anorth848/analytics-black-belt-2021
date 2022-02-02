@@ -26,7 +26,7 @@ Parameters:
     Description: Comma deliminted list of four Cidr ranges. Only relevant if VpcSubnetIds is set to CREATE
     Default: "10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24"
 
-  CreateQuickSightInfrastructure:
+  CreateConsumptionStack:
     Type: String
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'FALSE'
@@ -91,7 +91,7 @@ Parameters:
     AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
 
 Conditions:
-  CreateQuickSightInfrastructure: !Equals [ !Ref CreateQuickSightInfrastructure, 'TRUE' ]
+  CreateConsumptionStack: !Equals [ !Ref CreateConsumptionStack, 'TRUE' ]
   CreateNetworkInfrastructure: !Equals [ !Ref CreateNetworkInfrastructure, 'TRUE' ]
   CreateDmsInfrastructure: !Equals [ !Ref CreateDmsInfrastructure, 'TRUE' ]
 
@@ -115,7 +115,6 @@ Resources:
       Parameters:
         UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
-        CreateLambdaInVpc: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
 
   CicdInfrastructureStack:
     Type: AWS::Serverless::Application
@@ -158,7 +157,7 @@ Resources:
 
   DmsInfrastructureStack:
     Type: AWS::Serverless::Application
-    DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, SecretsStack ]
+    DependsOn: [ NetworkInfrastructureStack, RuntimeInfrastructureStack, SecretsStack, DataLakeStack ]
     Properties:
       Location: templates/dms-infrastructure.yaml
       Parameters:
@@ -175,13 +174,13 @@ Resources:
         ParentStack: !Ref AWS::StackName
 
   #  This stack assumes you've enabled QuickSight in this account and have access from your IAM credentials
-  #  and Parameter CreateQuickSightInfrastructure set to 'TRUE'
-  QuickSightInfrastructureStack:
+  #  and Parameter CreateConsumptionStack set to 'TRUE'
+  ConsumptionStack:
     Type: AWS::Serverless::Application
-    Condition: CreateQuickSightInfrastructure
+    Condition: CreateConsumptionStack
     DependsOn: [ DataLakeStack ]
     Properties:
-      Location: templates/quicksight-infrastructure.yaml
+      Location: templates/consumption.yaml
       Parameters:
         UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName

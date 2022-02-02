@@ -18,7 +18,30 @@
     CreateNetworkInfrastructure=TRUE
     CreateDmsVpcRole=TRUE
     CreateDmsInfrastructure=TRUE
-    CreateQuickSightInfrastructure=TRUE
+    CreateConsumptionStack=TRUE
+    OpsEmailAddress=adam.north@doit-intl.com
+    DbName=hammerdb
+    DbEndpoint=pg-hammerdb.cob4psnojwdw.us-east-1.rds.amazonaws.com
+    DbUserNameSpark=spark
+    DBUserNameDms=awsdms"""
+
+ [dr.deploy.parameters]
+ stack_name = "da-black-belt-2021"
+ # by default, SAM will create a bucket for your artifacts.
+ # Override that here if you have an existing bucket you'd like to use
+ # s3_bucket = "adamn-831275422924"
+ # comment out 'resolve_s3' line if you use your own bucket
+ resolve_s3 = true
+ s3_prefix = "analytics-black-belt-2021/sam_deployments/"
+ region = "us-west-2"
+ confirm_changeset = true
+ capabilities = ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM", "CAPABILITY_AUTO_EXPAND"]
+ tags = "project=\"2021-black-belt\" stage=\"dr\""
+ parameter_overrides = """UseCase=rdbms_analytics
+    CreateNetworkInfrastructure=TRUE
+    CreateDmsVpcRole=FALSE
+    CreateDmsInfrastructure=TRUE
+    CreateConsumptionStack=TRUE
     OpsEmailAddress=adam.north@doit-intl.com
     DbName=hammerdb
     DbEndpoint=pg-hammerdb.cob4psnojwdw.us-east-1.rds.amazonaws.com

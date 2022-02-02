@@ -219,6 +219,11 @@ Resources:
                       !GetAtt EmrStepFunction.Name,
                       '*'
                     ]]
+              - Sid: AllowSns
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Sub '{{resolve:ssm:/${ParentStack}/runtime/sns/topic/arn}}'
 
   LaunchEmrPipelineLambda:
     Type: AWS::Serverless::Function
@@ -235,10 +240,34 @@ Resources:
           POWERTOOLS_SERVICE_NAME: LaunchEmrSfn
           SILVER_LAKE_S3URI: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/silver/prefix_uri', '}}' ] ]
           BRONZE_LAKE_S3URI: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/bronze/prefix_uri', '}}' ] ]
+          TOPIC_ARN: !Sub '{{resolve:ssm:/${ParentStack}/runtime/sns/topic/arn}}'
       Handler: handler.handler
       Role: !GetAtt LaunchEmrPipelineLambdaRole.Arn
       Runtime: python3.9
       Timeout: 60
+      Events:
+        RunJdbcFull:
+          Type: Schedule
+          Properties:
+            Description: Invoke Full Load to Bronze from JDBC once per week for faster recovery in case of failure
+            Enabled: FALSE
+            Input: >
+              {
+                "Identifier": "hammerdb",
+                "PipelineType": "full_load"
+              }
+            Schedule: rate(7 days)
+        RunIncrementalHudi:
+          Type: Schedule
+          Properties:
+            Description: Invoke hourly incremental updates of the hudi tables
+            Enabled: FALSE
+            Input: >
+              {
+                "Identifier": "hammerdb",
+                "PipelineType": "incremental_hudi"
+              }
+            Schedule: rate(1 hour)
       # If VPC was created as part of this deployment, create the lambda in vpc, otherwise omit vpc settings
       VpcConfig:
         SecurityGroupIds: [ !If [
@@ -258,6 +287,21 @@ Resources:
             !Ref AWS::NoValue
           ]
         ]
+
+  LaunchEmrPipelineLambdaManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy to attach to roles that need to launch the EMR Pipeline Lambda
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: InvokeLambda
+            Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt LaunchEmrPipelineLambda.Arn
+      Roles:
+        - !Ref EmrStepFunctionRole
 
   LaunchEmrPipelineLambdaArnParameter:
     Type: AWS::SSM::Parameter

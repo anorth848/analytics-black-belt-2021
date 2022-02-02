@@ -13,16 +13,6 @@ Parameters:
     AllowedPattern: "[a-z_]+"
     Description: The use case. This will be used for naming resources throughout nested stacks.
 
-  CreateLambdaInVpc:
-    Type: String
-    AllowedValues: [ 'TRUE', 'FALSE' ]
-    Default: 'TRUE'
-
-Conditions:
-  CreateLambdaInVpc: !Equals
-    - !Ref CreateLambdaInVpc
-    - 'TRUE'
-
 Resources:
   SilverLakeBucket:
     Type: AWS::S3::Bucket
@@ -52,50 +42,6 @@ Resources:
           - ObjectOwnership: BucketOwnerPreferred
       VersioningConfiguration:
         Status: Enabled
-
-  BronzeLakeEventLambda:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../src/lambdas/bronze_s3_events/
-      Description: Lambda Function for processing bronze lake s3 events
-      Environment:
-        Variables:
-          LOG_LEVEL: 'INFO'
-      Handler: handler.handler
-      Runtime: python3.9
-      Timeout: 60
-      # If VPC was created as part of this deployment, create the lambda in vpc, otherwise omit vpc settings
-      VpcConfig:
-        SecurityGroupIds: [ !If [
-            CreateLambdaInVpc,
-            !Sub '{{resolve:ssm:/${ParentStack}/network/vpc/defaultsg}}',
-            !Ref AWS::NoValue
-        ] ]
-        SubnetIds: [
-          !If [
-              CreateLambdaInVpc,
-              !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/a/id}}',
-              !Ref AWS::NoValue
-          ],
-          !If [
-              CreateLambdaInVpc,
-              !Sub '{{resolve:ssm:/${ParentStack}/network/subnet/b/id}}',
-              !Ref AWS::NoValue
-          ]
-        ]
-      Events:
-        S3CreateObjectEvent:
-          Type: S3
-          Properties:
-            Bucket: !Ref BronzeLakeBucket
-            Events: [ s3:ObjectCreated:* ]
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: !Sub '${UseCase}/cdc/'
-                  - Name: suffix
-                    Value: !Sub '.parquet'
 
   BronzeLakeBucket:
     Type: AWS::S3::Bucket
@@ -129,7 +75,6 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-
   GlueDatabase:
     Type: AWS::Glue::Database
     Properties:
@@ -137,7 +82,6 @@ Resources:
       DatabaseInput:
         Description: Data Lake database
         Name: !Ref UseCase
-        #LocationUri: !Sub 's3://${LakeBucket}/${UseCase}/'
 
   LakeFormationLocationRole:
     Type: AWS::IAM::Role
@@ -203,6 +147,28 @@ Resources:
       # ServiceLinkedRole does not properly delete using CloudFormation so using a traditional IAM role
       UseServiceLinkedRole: FALSE
       RoleArn: !GetAtt LakeFormationLocationRole.Arn
+
+  BackupIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "backup.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      Description: "Role for use by AWS Backup"
+      #  NOTE: rather than using the AWS provided managed policies, consider creating your own policies with POLP
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
 
   CatalogParameter:
     Type: AWS::SSM::Parameter

@@ -10,7 +10,6 @@ Parameters:
 
   ParentStack:
     Type: String
-    Default: 'da-black-belt-2021'
     Description: The stack which created all required infrastructure
 
 Resources:
@@ -29,7 +28,7 @@ Resources:
       MultiAZ: FALSE
       PreferredMaintenanceWindow: 'Sat:20:00-Sun:04:00'
       PubliclyAccessible: FALSE
-      ReplicationInstanceClass: dms.c4.2xlarge
+      ReplicationInstanceClass: dms.c4.xlarge
       ReplicationSubnetGroupIdentifier: !Sub '{{resolve:ssm:/${ParentStack}/dms/subnet_group/name}}'
       #  This will attach the default security group
       VpcSecurityGroupIds: !Ref AWS::NoValue

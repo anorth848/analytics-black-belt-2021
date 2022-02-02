@@ -31,20 +31,13 @@ def main():
     database_config = config_dict['DatabaseConfig']
     table_config = config_dict['TableConfigs'][table_name]
     secret_id = database_config['secret']
-    glue_database = database_config['target_db_name']
     spark_jdbc_config = table_config['spark_jdbc_config'] if 'spark_jdbc_config' in table_config else None
 
     spark, spark_jdbc, source_db = get_spark(secret_id, table_name, spark_jdbc_config)
     spark.sparkContext.setLogLevel(log_level)
     table_prefix = f"{source_db}/{table_name.replace('.','/')}"
 
-
     precombine_field = table_config['hudi_config']['watermark']
-
-    if table_config['hudi_config']['is_partitioned'] is True:
-        part_cols = table_config['hudi_config']['partition_path'].split(',')
-    else:
-        part_cols = None
 
     if precombine_field == 'trx_seq':
         # Downstream we will merge CDC using AR_H_CHANGE_SEQ as the key if trx_seq is the precombine field
@@ -63,25 +56,12 @@ def main():
         CASE WHEN 1=0 THEN NULL ELSE '{trx_seq}' END AS trx_seq,
         CASE WHEN 1=0 THEN NULL ELSE FALSE END AS _hoodie_is_deleted
         FROM temp_view t
-    """) \
-        .write \
+    """)
+
+    df.write \
         .format('parquet') \
-        .mode('overwrite')
-
-    if part_cols is not None:
-        df = df.partitionBy(*part_cols)
-
-    df.save(os.path.join(lake_location_uri, 'full', table_prefix))
-
-    # final_df.write \
-    #     .mode('overwrite') \
-    #     .parquet(os.path.join(lake_location_uri, glue_table_name, 'full/'))
-
-    # df.write \
-    #     .format('org.apache.hudi') \
-    #     .options(**hudi_options) \
-    #     .mode('overwrite') \
-    #     .save(os.path.join(lake_location_uri, glue_table_name, ''))
+        .mode('overwrite') \
+        .save(os.path.join(lake_location_uri, 'full', table_prefix))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 STACK_NAME:=da-black-belt-2021
+REGION:=us-east-1
 
 check_defined = \
     $(strip $(foreach 1,$1, \
@@ -23,5 +24,5 @@ scripts:
 
 deploy: $(call check_defined, STACK_NAME)
 deploy:
-	BUCKET=`aws ssm get-parameter --name /$(STACK_NAME)/cicd/artifact_bucket/name | jq -r .Parameter.Value ` ;\
-	aws s3 sync build s3://$$BUCKET/artifacts/ --include '*' --exclude '*__pycache__*' --delete
+	BUCKET=`aws --region $(REGION) ssm get-parameter --name /$(STACK_NAME)/cicd/artifact_bucket/name | jq -r .Parameter.Value ` ;\
+	aws --region $(REGION) s3 sync build s3://$$BUCKET/artifacts/ --include '*' --exclude '*__pycache__*' --delete  ;

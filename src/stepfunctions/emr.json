@@ -9,7 +9,7 @@
             "Parameters": {
                 "Name.$": "$$.Execution.Name",
                 "VisibleToAllUsers": true,
-                "ReleaseLabel": "emr-6.5.0",
+                "ReleaseLabel.$": "$.pipeline.emr_config.release_label",
                 "EbsRootVolumeSize": 10,
                 "Tags": [
                     {
@@ -25,7 +25,7 @@
                 "ServiceRole": "${EmrServiceRole}",
                 "JobFlowRole": "${EmrJobFlowRole}",
                 "LogUri": "${EmrLogUri}",
-                "StepConcurrencyLevel.$": "$.emr.step_parallelism",
+                "StepConcurrencyLevel.$": "$.pipeline.emr_config.step_parallelism",
                 "BootstrapActions": [
                     {
                         "Name": "SyncLibsAndConfigs",
@@ -54,7 +54,7 @@
                                             }
                                         ]
                                     },
-                                    "InstanceType.$": "$.emr.master.instance_type",
+                                    "InstanceType.$": "$.pipeline.emr_config.master.instance_type",
                                     "WeightedCapacity": 1
                                 }
                             ],
@@ -76,12 +76,12 @@
                                             }
                                         ]
                                     },
-                                    "InstanceType.$": "$.emr.worker.instance_type",
+                                    "InstanceType.$": "$.pipeline.emr_config.worker.instance_type",
                                     "WeightedCapacity": 1
                                 }
                             ],
                             "Name": "core-fleet",
-                            "TargetOnDemandCapacity.$": "$.emr.worker.count"
+                            "TargetOnDemandCapacity.$": "$.pipeline.emr_config.worker.count"
                         }
                     ]
                 },
@@ -264,10 +264,10 @@
             "Parameters": {
                 "ClusterId.$": "$.cluster.ClusterId"
             },
-            "Next": "ExitSuccessOrFail",
+            "Next": "ExitOrLaunchNext",
             "ResultPath": "$.cluster.terminate_output"
         },
-        "ExitSuccessOrFail": {
+        "ExitOrLaunchNext": {
             "Type": "Choice",
             "Choices": [
                 {
@@ -276,11 +276,37 @@
                     "Next": "ExitFail"
                 },
                 {
-                    "Variable": "$.exception",
-                    "IsPresent": false,
-                    "Next": "ExitSuccess"
+                    "And": [
+                        {
+                            "Variable": "$.lambda.pipeline.next_pipeline",
+                            "IsPresent": true
+                        },
+                        {
+                            "Variable": "$.lambda.pipeline.next_pipeline.pipeline_type",
+                            "IsPresent": true
+                        },
+                        {
+                            "Variable": "$.lambda.pipeline.next_pipeline.enabled",
+                            "BooleanEquals": true
+                        }
+                    ],
+                    "Next": "LaunchNextPipeline"
                 }
-            ]
+            ],
+            "Default": "ExitSuccess"
+        },
+        "LaunchNextPipeline":{
+            "Type":"Task",
+            "Resource":"arn:aws:states:::lambda:invoke",
+            "Parameters":{
+                "FunctionName.$": "$.lambda.function_name",
+                "InvocationType": "Event",
+                "Payload": {
+                    "Identifier.$": "$.lambda.identifier",
+                    "PipelineType.$": "$.lambda.pipeline.next_pipeline.pipeline_type"
+                }
+            },
+            "Next": "ExitSuccess"
         },
         "ExitSuccess": {
             "Type": "Succeed"
