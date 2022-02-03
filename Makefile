@@ -1,6 +1,3 @@
-STACK_NAME:=da-black-belt-2021
-REGION:=us-east-1
-
 check_defined = \
     $(strip $(foreach 1,$1, \
         $(call __check_defined,$1,$(strip $(value 2)))))
@@ -16,11 +13,11 @@ clean:
 mkdirs:
 	mkdir -p build/emr/jars
 
+scripts:
+	cp -r src/emr/ build/emr/ ;
+
 download:
 	curl https://jdbc.postgresql.org/download/postgresql-42.3.1.jar -o build/emr/jars/postgresql-42.3.1.jar ;\
-
-scripts:
-	cp -r src/emr/ build/emr/
 
 deploy: $(call check_defined, STACK_NAME)
 deploy:

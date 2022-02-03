@@ -12,6 +12,11 @@ Parameters:
     Type: String
     Description: The stack which created all required infrastructure
 
+  ReplicationInstanceClass:
+    Type: String
+    Description: The replication instance class
+    Default: dms.c4.xlarge
+
 Resources:
   ReplicationInstance:
     Type: AWS::DMS::ReplicationInstance
@@ -28,7 +33,7 @@ Resources:
       MultiAZ: FALSE
       PreferredMaintenanceWindow: 'Sat:20:00-Sun:04:00'
       PubliclyAccessible: FALSE
-      ReplicationInstanceClass: dms.c4.xlarge
+      ReplicationInstanceClass: !Ref ReplicationInstanceClass
       ReplicationSubnetGroupIdentifier: !Sub '{{resolve:ssm:/${ParentStack}/dms/subnet_group/name}}'
       #  This will attach the default security group
       VpcSecurityGroupIds: !Ref AWS::NoValue
