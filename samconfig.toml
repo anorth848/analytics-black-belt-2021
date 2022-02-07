@@ -46,7 +46,8 @@
     DbName=hammerdb
     DbEndpoint=pg-hammerdb.cob4psnojwdw.us-east-1.rds.amazonaws.com
     DbUserNameSpark=spark
-    DBUserNameDms=awsdms"""
+    DBUserNameDms=awsdms
+    IncrementalSchedule=rate(2 hours)"""
 
  [novpc.deploy.parameters]
  stack_name = "novpc"

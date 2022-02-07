@@ -19,6 +19,16 @@ Parameters:
     AllowedValues: [ 'TRUE', 'FALSE' ]
     Default: 'TRUE'
 
+  IncrementalSchedule:
+    Type: String
+    Description: The schedule expression for the Hudi incremental jobs
+
+  UseCase:
+    Type: String
+    AllowedPattern: "[a-z_]+"
+    Description: The use case. This will be used for naming resources throughout nested stacks.
+
+
 Conditions:
   CreateLambdaInVpc: !Equals
     - !Ref CreateLambdaInVpc
@@ -245,29 +255,6 @@ Resources:
       Role: !GetAtt LaunchEmrPipelineLambdaRole.Arn
       Runtime: python3.9
       Timeout: 60
-      Events:
-        RunJdbcFull:
-          Type: Schedule
-          Properties:
-            Description: Invoke Full Load to Bronze from JDBC once per week for faster recovery in case of failure
-            Enabled: FALSE
-            Input: >
-              {
-                "Identifier": "hammerdb",
-                "PipelineType": "full_load"
-              }
-            Schedule: rate(7 days)
-        RunIncrementalHudi:
-          Type: Schedule
-          Properties:
-            Description: Invoke hourly incremental updates of the hudi tables
-            Enabled: FALSE
-            Input: >
-              {
-                "Identifier": "hammerdb",
-                "PipelineType": "incremental_hudi"
-              }
-            Schedule: rate(1 hour)
       # If VPC was created as part of this deployment, create the lambda in vpc, otherwise omit vpc settings
       VpcConfig:
         SecurityGroupIds: [ !If [
@@ -287,6 +274,89 @@ Resources:
             !Ref AWS::NoValue
           ]
         ]
+#      Events:
+#        RunJdbcFull:
+#          Type: Schedule
+#          Properties:
+#            Description: Invoke Full Load to Bronze from JDBC once per week for faster recovery in case of failure
+#            Enabled: FALSE
+#            Input: >
+#              {
+#                "Identifier": "hammerdb",
+#                "PipelineType": "full_load"
+#              }
+#            Schedule: rate(7 days)
+#        RunIncrementalHudi:
+#          Type: Schedule
+#          Properties:
+#            Description: Invoke hourly incremental updates of the hudi tables
+#            Enabled: FALSE
+#            Input: !Sub >
+#              {
+#                "Identifier": "${UseCase}",
+#                "PipelineType": "incremental_hudi"
+#              }
+#            Schedule: !Ref IncrementalSchedule
+
+#  LaunchEmrPipelineEventRole:
+#    Type: AWS::IAM::Role
+#    Properties:
+#      AssumeRolePolicyDocument:
+#        "Version": "2012-10-17"
+#        "Statement":
+#          - Effect: Allow
+#            Principal:
+#              Service: [ "events.amazonaws.com" ]
+#            Action: [ "sts:AssumeRole" ]
+#      Description: Role for Events to execute the EMR Launch lambda
+
+  FullLoadSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Invoke Full Load to Bronze from JDBC once per week for faster recovery in case of failure
+      ScheduleExpression: rate(7 days)
+      State: DISABLED
+      #RoleArn: !GetAtt LaunchEmrPipelineEventRole.Arn
+      Targets:
+        - Arn: !GetAtt LaunchEmrPipelineLambda.Arn
+          Id: !Ref LaunchEmrPipelineLambda
+          Input: !Sub >
+            {
+              "Identifier": "${UseCase}",
+              "PipelineType": "full_load"
+            }
+
+  IncrementalLoadSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Invoke periodic incremental updates of the hudi tables
+      ScheduleExpression: !Ref IncrementalSchedule
+      State: DISABLED
+      #RoleArn: !GetAtt LaunchEmrPipelineEventRole.Arn
+      Targets:
+        - Arn: !GetAtt LaunchEmrPipelineLambda.Arn
+          Id: !Ref LaunchEmrPipelineLambda
+          Input: !Sub >
+            {
+              "Identifier": "${UseCase}",
+              "PipelineType": "incremental_hudi"
+            }
+
+  LambdaPermissionFullLoad:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LaunchEmrPipelineLambda
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt FullLoadSchedule.Arn
+
+  LambdaPermissionIncrementalLoad:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LaunchEmrPipelineLambda
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt IncrementalLoadSchedule.Arn
 
   LaunchEmrPipelineLambdaManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -302,6 +372,7 @@ Resources:
             Resource: !GetAtt LaunchEmrPipelineLambda.Arn
       Roles:
         - !Ref EmrStepFunctionRole
+        #- !Ref LaunchEmrPipelineEventRole
 
   LaunchEmrPipelineLambdaArnParameter:
     Type: AWS::SSM::Parameter
@@ -318,3 +389,19 @@ Resources:
       Name: !Sub '/${ParentStack}/emr_pipeline/stepfunction/arn'
       Type: String
       Value: !Ref EmrStepFunction
+
+  FullLoadScheduleName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Launch lambda arn
+      Name: !Sub '/${ParentStack}/emr_pipeline/event_rule/full_load/name'
+      Type: String
+      Value: !Ref FullLoadSchedule
+
+  IncrementalScheduleName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Launch lambda arn
+      Name: !Sub '/${ParentStack}/emr_pipeline/event_rule/incremental_hudi/name'
+      Type: String
+      Value: !Ref IncrementalLoadSchedule

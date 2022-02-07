@@ -14,19 +14,20 @@ identifier ( STRING, Partition key )
 config  (STRING, Sort key)
 ```
 
-*identifier*: This attribute is meant to uniquely identify a group of config records related to a set of pipelines. It can be arbitrarily named.
-*config*: This attribute must be one of [database::config, pipeline::config::<pipeline type>, table::config::<table name>].
+- *identifier*: This attribute is meant to uniquely identify a group of config records related to a set of pipelines. It can be arbitrarily named.   
+  - ***NOTE: This must match UseCase from the Parent stacks for the first use case***   
+- *config*: This attribute must be one of [database::config, pipeline::config::<pipeline type>, table::config::<table name>].
 
 #### Item specifics
 
 In order for the system to function, each `identifier` group of items must have at least 3 items.
-Using `hammerdb` as our identifier, here is an example of the minimum number of items in DynamoDB if you just wanted to load the customer table:   
+Using `rdbms_analytics` as our identifier(UseCase), here is an example of the minimum number of items in DynamoDB if you just wanted to load the customer table:   
 
 |identifier|config|
 |----------|------|
-|hammerdb|database::config|
-|hammerdb|pipeline::config::full_load|
-|hammerdb|table::public.customer|
+|rdbms_analytics|database::config|
+|rdbms_analytics|pipeline::config::full_load|
+|rdbms_analytics|table::public.customer|
 
 ##### Item schema
 
@@ -39,7 +40,7 @@ Currently only one jdbc datasource can be configured per pipeline. To add more j
 ```
 {
     "config": "database::config",
-    "identifier": "hammerdb",
+    "identifier": "rdbms_analytics",
     "secret": "secrets/manager/secret/name",    // This is the path to the connection information in AWS Secrets Manager
     "target_db_name": "use_case",               // This is the target glue database name 
     "target_table_prefix": "hammberdb"          // This is the prefix all glue tables will be created with EG: public.customer becomes hammerdb_public_customer
@@ -55,7 +56,7 @@ pipeline::config items are meant to tell the pipeline how to launch the EMR clus
 ```
 {
     "config": "pipeline::config::full_load",    // Pipeline type, must be one of [full_load|seed_hudi|incremental_hudi|continuous_hudi]
-    "identifier": "hammerdb",
+    "identifier": "rdbms_analytics",
     "emr_config": {                             // These configs get passed into the StepFunction and are used when creating the EMR cluster
                                                 // At present, cluster instance options are limited, need to add Spot and Autoscaling support
         "release_label": "emr-6.5.0",
@@ -83,7 +84,7 @@ This include Spark JDBC Options, EMR Job Step options, and Hudi options.
 ```
 {
     "config": "table::<table_name>",            // One item per table
-    "identifier": "<identifier>",
+    "identifier": "rdbms_analytics",
     "enabled": [true|false],                      // Enable or Disable the table 
     "hudi_config": {
         "primary_key": "<c,s,v>",               // Comma-separated list of primary key columns on the table       
@@ -112,12 +113,12 @@ This include Spark JDBC Options, EMR Job Step options, and Hudi options.
 }
 ```
 
-Example record for public.order_line in hammerdb grouping:    
+Example record for public.order_line in rdbms_analytics grouping:    
 
 ```
 {
     "config": "table::public.order_line",
-    "identifier": "hammerdb",
+    "identifier": "rdbms_analytics",
     "enabled": true,
     "hudi_config": {
         "primary_key": "ol_w_id,ol_d_id,ol_o_id,ol_number",

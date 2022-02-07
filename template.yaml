@@ -90,6 +90,12 @@ Parameters:
     Description: The Operations team email address for notifications
     AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
 
+  IncrementalSchedule:
+    Type: String
+    Description: The schedule expression for the Hudi incremental jobs
+    Default: 'rate(2 hours)'
+    AllowedPattern: "(rate|cron)\\(.*\\)"
+
 Conditions:
   CreateConsumptionStack: !Equals [ !Ref CreateConsumptionStack, 'TRUE' ]
   CreateNetworkInfrastructure: !Equals [ !Ref CreateNetworkInfrastructure, 'TRUE' ]
@@ -152,8 +158,10 @@ Resources:
     Properties:
       Location: templates/emr-pipeline.yaml
       Parameters:
+        UseCase: !Ref UseCase
         ParentStack: !Ref AWS::StackName
         CreateLambdaInVpc: !If [ CreateNetworkInfrastructure, 'TRUE', 'FALSE' ]
+        IncrementalSchedule: !Ref IncrementalSchedule
 
   DmsInfrastructureStack:
     Type: AWS::Serverless::Application

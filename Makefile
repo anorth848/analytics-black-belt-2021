@@ -23,3 +23,11 @@ deploy: $(call check_defined, STACK_NAME)
 deploy:
 	BUCKET=`aws --region $(REGION) ssm get-parameter --name /$(STACK_NAME)/cicd/artifact_bucket/name | jq -r .Parameter.Value ` ;\
 	aws --region $(REGION) s3 sync build s3://$$BUCKET/artifacts/ --include '*' --exclude '*__pycache__*' --delete  ;
+
+enable_full: $(call check_defined, STACK_NAME)
+	RULE=`aws --region $(REGION) ssm get-parameter --name /$(STACK_NAME)/emr_pipeline/event_rule/full_load/name | jq -r .Parameter.Value` ;\
+	aws --region $(REGION) events enable-rule --name $$RULE && echo "enable_full complete"
+
+enable_incremental: $(call check_defined, STACK_NAME)
+	RULE=`aws --region $(REGION) ssm get-parameter --name /$(STACK_NAME)/emr_pipeline/event_rule/incremental_hudi/name | jq -r .Parameter.Value` ;\
+	aws --region $(REGION) events enable-rule --name $$RULE && echo "enable_incremental complete"

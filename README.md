@@ -144,6 +144,7 @@ After gathering deployment prerequisites, decide the following Cloudformation pa
 |CreateDmsVpcRole|FALSE|Whether or not to create the DMS VPC Role. Set to TRUE if you have not ever used AWS DMS in this account.|
 |CreateDmsInfrastructure|FALSE|Whether or not to create the DMS Infrastructure. If you plan to use a different solution for incremental changes or want to create these resources later, set to FALSE.|
 |CreateConsumptionStack|FALSE|Whether or not to create the Quicksight and Athena resources.|
+|IncrementalSchedule|rate(2 hours)|The incremental Hudi schedule|
 
 ### Installation
 
@@ -186,7 +187,7 @@ Once the cloudformation stacks have been created, upload EMR related code and li
 
 #### DynamoDB configuration
 
-DynamoDB stores configuration information for the EMR Pipeline/StepFunction. DynamoDB records need to be added specifically for your database/use case.   
+DynamoDB stores configuration information for the EMR Pipeline/StepFunction. DynamoDB records need to be added specifically for your database/UseCase.   
 Please review the [DynamoDB Runtime config table documentation](docs/dynamodb.md).   
 You can add records to DynamoDB manually (not recommended), or you can [modify the sample file provided](helpers/runtime-configs.json) and then import it with:   
 
@@ -196,6 +197,65 @@ cd helpers
 python ./import_config_data.py --table-name <your dynamodb table name>
 ```
 
+## Operating the system
+
+Once the above installation and configuration is complete, you are ready to start processing data    
+
+#### Deploy your AWS DMS replication task stack
+
+The AWS DMS replication task is created separately from the previous infrastructure.
+These tasks vary based on the environment, source database, etc.
+
+- *Update [templates/dms-replication-task.yaml](templates/dms-replication-task.yaml) for your use case*
+- Deploy the stack 
+  ```
+  aws cloudformation create-stack --stack-name hudi-lake-cdc \
+  --template-body file://templates/dms-replication-task.yaml \
+  --parameters \
+  ParameterKey=UseCase,ParameterValue=rdbms_analytics \
+  ParameterKey=ParentStack,ParameterValue=hudi-lake \
+  ParameterKey=ReplicationInstanceClass,ParameterValue=dms.c4.xlarge
+  ```
+  - `UseCase` should match what was previously chosen
+  - `ParentStack` should match the stack name created previously
+  - `ReplicationInstanceClass` should be sized according to the use case
+
+#### Enabled the system and create the data lake
+
+- Enabled the full load
+  - `make STACK_NAME=hudi-lake REGION=us-east-1 enable_full`
+  - This will enable the full load schedule, which runs every 7 days (from the time you enabled it)
+  - The reason this runs every 7 days is to make recovery in the event of a failure faster
+- Assuming you have next_pipeline configured in your pipeline::config::<pipeline_type> dynamodb config entries EG:
+  - ```
+      "next_pipeline": {
+        "pipeline_type": "seed_hudi",
+        "enabled": true
+    }
+    ```
+  - Once the full load is complete, seed_hudi pipeline should be kicked off
+  - Once seed_hudi is complete, incremental_hudi pipeline should be kicked off (assuming again, next_pipeline is configured)
+  
+
+#### Incremental updates
+
+Once the Datalake has been created, and the Hudi tables populated, you are ready to apply incremental updates.   
+Incremental updates leverage [Hudi's DeltaStreamer in either Run Once or Continuous modes](https://hudi.apache.org/docs/deployment/#deltastreamer)
+
+##### Run Once Mode (scheduled incrementals)
+If your requirements allow a scheduled incremental update, enable the incremental schedule
+- This will apply incremental changes to your hudi tables based on the schedule you defined in stack parameter `IncrementalSchedule`
+- `make STACK_NAME=hudi-lake REGION=us-east-1 enable_incremental`
+##### Continuous mode (long-running EMR cluster)
+If you would like to apply incremental updates continuously, pipeline::config::incremental_hudi.next_pipeline should be cofigured
+```
+"next_pipeline": {
+  "pipeline_type": "continuous_hudi",
+  "enabled": true
+}
+```
+ - This launches a long-running EMR cluster that will use Hudi DeltaStreamer with --continuous flag 
+ 
 ## Out of scope
 
 The following components are out of scope of this project

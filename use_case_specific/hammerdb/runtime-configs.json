@@ -4,11 +4,11 @@
         "target_db_name": "rdbms_analytics",
         "target_table_prefix": "hammerdb",
         "config": "database::config",
-        "identifier": "hammerdb"
+        "identifier": "rdbms_analytics"
     },
     {
         "config": "pipeline::config::full_load",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -27,7 +27,7 @@
     },
     {
         "config": "pipeline::config::seed_hudi",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -49,7 +49,7 @@
     },
     {
         "config": "pipeline::config::continuous_hudi",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -64,7 +64,7 @@
     },
     {
         "config": "pipeline::config::incremental_hudi",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -78,12 +78,12 @@
         },
         "next_pipeline": {
             "pipeline_type": "continuous_hudi",
-            "enabled": true
+            "enabled": false
         }
     },
     {
         "config": "table::public.customer",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "hudi_config": {
             "primary_key": "c_w_id,c_d_id,c_id",
             "watermark": "trx_seq",
@@ -122,7 +122,7 @@
     },
     {
         "config": "table::public.district",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "hudi_config": {
             "primary_key": "d_w_id,d_id",
             "watermark": "trx_seq",
@@ -139,7 +139,7 @@
     },
     {
         "config": "table::public.item",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
             "primary_key": "i_id",
@@ -156,7 +156,7 @@
     },
     {
         "config": "table::public.new_order",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
             "primary_key": "no_w_id,no_d_id,no_o_id",
@@ -173,7 +173,7 @@
     },
     {
         "config": "table::public.order_line",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
             "primary_key": "ol_w_id,ol_d_id,ol_o_id,ol_number",
@@ -226,7 +226,7 @@
     },
     {
         "config": "table::public.orders",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
             "primary_key": "o_w_id,o_d_id,o_id",
@@ -243,7 +243,7 @@
     },
     {
         "config": "table::public.stock",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
             "primary_key": "s_i_id,s_w_id",
@@ -296,7 +296,7 @@
     },
     {
         "config": "table::public.warehouse",
-        "identifier": "hammerdb",
+        "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
             "primary_key": "w_id",
