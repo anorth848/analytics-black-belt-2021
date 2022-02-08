@@ -1,9 +1,9 @@
 ## Runtime Config table
 
-The runtime config table holds configuration data related to:   
-- Spark JDBC datasources
-- EMR Pipelines
-- Tables
+The runtime config table contains items with configuration data related to:   
+- Spark JDBC datasources and related configs
+- EMR Pipelines and related configs
+- Tables and related configs
 
 ### Partition Key/Sort Key
 
@@ -14,8 +14,9 @@ identifier ( STRING, Partition key )
 config  (STRING, Sort key)
 ```
 
-- *identifier*: This attribute is meant to uniquely identify a group of config records related to a set of pipelines. It can be arbitrarily named.   
-  - ***NOTE: This must match UseCase from the Parent stacks for the first use case***   
+- *identifier*: This attribute is meant to uniquely identify a group of config records related to a set of pipelines.   
+  - ***This must match UseCase from the Parent stacks for the first configured pipeline***   
+  - Additional pipelines can be arbitrarily named
 - *config*: This attribute must be one of [database::config, pipeline::config::<pipeline type>, table::config::<table name>].
 
 #### Item specifics
@@ -56,7 +57,7 @@ pipeline::config items are meant to tell the pipeline how to launch the EMR clus
 ```
 {
     "config": "pipeline::config::full_load",    // Pipeline type, must be one of [full_load|seed_hudi|incremental_hudi|continuous_hudi]
-    "identifier": "rdbms_analytics",
+    "identifier": "<UseCase>",
     "emr_config": {                             // These configs get passed into the StepFunction and are used when creating the EMR cluster
                                                 // At present, cluster instance options are limited, need to add Spot and Autoscaling support
         "release_label": "emr-6.5.0",
@@ -67,7 +68,8 @@ pipeline::config items are meant to tell the pipeline how to launch the EMR clus
             "count": "6",
             "instance_type": "r5.2xlarge"
         },
-        "step_parallelism": 4
+        "step_parallelism": 4                   // NOTE: Make sure your worker settings can handle the parallelism you choose
+                                                //       This is especially important for continuous_load
     },
     "next_pipeline": {                          // When this pipeline completes, whether or not to launch the next pipeline
         "pipeline_type": "seed_hudi",           // Must be one of [ seed_hudi|incremental_hudi|continuous_hudi ]
@@ -84,7 +86,7 @@ This include Spark JDBC Options, EMR Job Step options, and Hudi options.
 ```
 {
     "config": "table::<table_name>",            // One item per table
-    "identifier": "rdbms_analytics",
+    "identifier": "<UseCase>",
     "enabled": [true|false],                      // Enable or Disable the table 
     "hudi_config": {
         "primary_key": "<c,s,v>",               // Comma-separated list of primary key columns on the table       
@@ -92,21 +94,18 @@ This include Spark JDBC Options, EMR Job Step options, and Hudi options.
                                                 // Currently only trx_seq (AR_H_CHANGE_SEQ from AWS DMS) is supported
                                                 // https://aws.amazon.com/blogs/database/capture-key-source-table-headers-data-using-aws-dms-and-use-it-for-amazon-s3-data-lake-operations/
         "is_partitioned": [true|false],         // Whether or not to partition the Hudi table
-        "partition_path": "ol_w_id",            // Required only if is_partitioned is true, the column to partition on
+        "partition_path": "<column>",           // Required only if is_partitioned is true, the column to partition on
         "partition_extractor_class": "<cls>"    // The Hive partition extractor class EG: org.apache.hudi.hive.MultiPartKeysValueExtractor
+        "transformer_class": "<cls"             // [OPTIONAL] The DeltaStreamer partition class EG: org.apache.hudi.utilities.transform.SqlQueryBasedTransformer
+        "transformer_sql": "<SQL STATEMENT AS s>// [OPTIONAL] The sql statement (must be set if transformer_class is SqlQueryBasedTransformer
     },
     "spark_jdbc_config": {                      // [OPTIONAL] this stanza is only used by full_load pipeline and is passed directly to spark jdbc. 
                                                 // Any option found here can be set: https://spark.apache.org/docs/latest/sql-data-sources-jdbc.html
-        "<option>": "<value",
-        "partitionColumn": "",
-        "lowerBound": "0",
-        "upperBound": "300",
-        "numPartitions": "30"
+        "<option>": "<value>"
     },
     "spark_conf": {                             // [OPTIONAL] this stanza is used to pass spark configurations to the emr job step
                                                 // Any option found here can be set:  https://spark.apache.org/docs/latest/configuration.html#available-properties
-        "<pipeline_type>": {                    // the name of the pipeline type to set the options for must be one of: 
-                                                //  [ full_load|seed_hudi|incremental_hudi|continuous_hudi ]
+        "<pipeline_type>": {                    // <pipeline type> must be one of: [ full_load|seed_hudi|incremental_hudi|continuous_hudi ]
             "<option>": "<value"
         }
     }

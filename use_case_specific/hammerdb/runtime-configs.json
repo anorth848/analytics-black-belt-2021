@@ -7,8 +7,9 @@
         "identifier": "rdbms_analytics"
     },
     {
-        "config": "pipeline::config::full_load",
+        "config": "pipeline::system::full_load",
         "identifier": "rdbms_analytics",
+        "allowed_concurrent": ["incremental_hudi", "continuous_hudi"],
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -26,8 +27,9 @@
         }
     },
     {
-        "config": "pipeline::config::seed_hudi",
+        "config": "pipeline::system::seed_hudi",
         "identifier": "rdbms_analytics",
+        "allowed_concurrent": false,
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -48,8 +50,9 @@
         }
     },
     {
-        "config": "pipeline::config::continuous_hudi",
+        "config": "pipeline::system::continuous_hudi",
         "identifier": "rdbms_analytics",
+        "allowed_concurrent": ["full_load"],
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -63,8 +66,9 @@
         }
     },
     {
-        "config": "pipeline::config::incremental_hudi",
+        "config": "pipeline::system::incremental_hudi",
         "identifier": "rdbms_analytics",
+        "allowed_concurrent": ["full_load"],
         "emr_config": {
             "release_label": "emr-6.5.0",
             "master": {
@@ -82,7 +86,30 @@
         }
     },
     {
-        "config": "table::public.customer",
+        "config": "pipeline::custom::denormalize",
+        "identifier": "rdbms_analytics",
+        "allowed_concurrent": ["full_load"],
+        "emr_config": {
+            "release_label": "emr-6.5.0",
+            "master": {
+                "instance_type": "m5.xlarge"
+            },
+            "worker": {
+                "count": "1",
+                "instance_type": "r5.xlarge"
+            },
+            "step_parallelism": 1,
+            "maximize_resource_allocation": "true"
+        }
+    },
+    {
+        "config": "step::denormalize::denormalize_order_line",
+        "identifier": "rdbms_analytics",
+        "enabled": true,
+        "entrypoint": [ "/mnt/var/lib/instance-controller/public/scripts/denormalize.py" ]
+    },
+    {
+        "config": "step::system::public.customer",
         "identifier": "rdbms_analytics",
         "hudi_config": {
             "primary_key": "c_w_id,c_d_id,c_id",
@@ -121,7 +148,7 @@
         }
     },
     {
-        "config": "table::public.district",
+        "config": "step::system::public.district",
         "identifier": "rdbms_analytics",
         "hudi_config": {
             "primary_key": "d_w_id,d_id",
@@ -138,7 +165,7 @@
         }
     },
     {
-        "config": "table::public.item",
+        "config": "step::system::public.item",
         "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
@@ -155,7 +182,7 @@
         }
     },
     {
-        "config": "table::public.new_order",
+        "config": "step::system::public.new_order",
         "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
@@ -172,7 +199,7 @@
         }
     },
     {
-        "config": "table::public.order_line",
+        "config": "step::system::public.order_line",
         "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
@@ -225,7 +252,7 @@
         }
     },
     {
-        "config": "table::public.orders",
+        "config": "step::system::public.orders",
         "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
@@ -242,7 +269,7 @@
         }
     },
     {
-        "config": "table::public.stock",
+        "config": "step::system::public.stock",
         "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
@@ -295,7 +322,7 @@
         }
     },
     {
-        "config": "table::public.warehouse",
+        "config": "step::system::public.warehouse",
         "identifier": "rdbms_analytics",
         "enabled": true,
         "hudi_config": {
@@ -319,7 +346,7 @@
         "identifier": "hammerdb-fail"
     },
     {
-        "config": "pipeline::config::full_load",
+        "config": "pipeline::system::full_load",
         "identifier": "hammerdb-fail",
         "master": {
             "instance_type": "m5.xlarge"
@@ -338,7 +365,7 @@
         }
     },
     {
-        "config": "table::public.order_line_fail",
+        "config": "step::system::public.order_line_fail",
         "identifier": "hammerdb-fail",
         "override_target_table_name": "hammerdb_public_order_line2",
         "enabled": true,

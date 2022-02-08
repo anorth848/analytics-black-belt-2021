@@ -116,6 +116,21 @@ Resources:
               !Sub '{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}'
           ] ]
 
+  EmrGoldLakeLocationPermissions:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EmrEc2Role}'
+      Permissions:
+        - DATA_LOCATION_ACCESS
+      Resource:
+        DataLocationResource:
+          CatalogId: !Ref AWS::AccountId
+          S3Resource: !Join ["/", [
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/bucket/gold/arn}}',
+              !Sub '{{resolve:ssm:/${ParentStack}/lake/glue/db/name}}'
+          ] ]
+
   EmrLakeTablePermissions:
     Type: AWS::LakeFormation::Permissions
     Properties:
@@ -178,6 +193,7 @@ Resources:
         RuntimeSnsTopicArn: !Sub '{{resolve:ssm:/${ParentStack}/runtime/sns/topic/arn}}'
         SilverLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/silver/prefix_uri', '}}' ] ]
         BronzeLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/bronze/prefix_uri', '}}' ] ]
+        GoldLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/gold/prefix_uri', '}}' ] ]
       Role: !GetAtt EmrStepFunctionRole.Arn
       Type: STANDARD
 
@@ -254,7 +270,7 @@ Resources:
       Handler: handler.handler
       Role: !GetAtt LaunchEmrPipelineLambdaRole.Arn
       Runtime: python3.9
-      Timeout: 60
+      Timeout: 90
       # If VPC was created as part of this deployment, create the lambda in vpc, otherwise omit vpc settings
       VpcConfig:
         SecurityGroupIds: [ !If [
@@ -274,41 +290,6 @@ Resources:
             !Ref AWS::NoValue
           ]
         ]
-#      Events:
-#        RunJdbcFull:
-#          Type: Schedule
-#          Properties:
-#            Description: Invoke Full Load to Bronze from JDBC once per week for faster recovery in case of failure
-#            Enabled: FALSE
-#            Input: >
-#              {
-#                "Identifier": "hammerdb",
-#                "PipelineType": "full_load"
-#              }
-#            Schedule: rate(7 days)
-#        RunIncrementalHudi:
-#          Type: Schedule
-#          Properties:
-#            Description: Invoke hourly incremental updates of the hudi tables
-#            Enabled: FALSE
-#            Input: !Sub >
-#              {
-#                "Identifier": "${UseCase}",
-#                "PipelineType": "incremental_hudi"
-#              }
-#            Schedule: !Ref IncrementalSchedule
-
-#  LaunchEmrPipelineEventRole:
-#    Type: AWS::IAM::Role
-#    Properties:
-#      AssumeRolePolicyDocument:
-#        "Version": "2012-10-17"
-#        "Statement":
-#          - Effect: Allow
-#            Principal:
-#              Service: [ "events.amazonaws.com" ]
-#            Action: [ "sts:AssumeRole" ]
-#      Description: Role for Events to execute the EMR Launch lambda
 
   FullLoadSchedule:
     Type: AWS::Events::Rule
@@ -316,7 +297,6 @@ Resources:
       Description: Invoke Full Load to Bronze from JDBC once per week for faster recovery in case of failure
       ScheduleExpression: rate(7 days)
       State: DISABLED
-      #RoleArn: !GetAtt LaunchEmrPipelineEventRole.Arn
       Targets:
         - Arn: !GetAtt LaunchEmrPipelineLambda.Arn
           Id: !Ref LaunchEmrPipelineLambda
@@ -332,7 +312,6 @@ Resources:
       Description: Invoke periodic incremental updates of the hudi tables
       ScheduleExpression: !Ref IncrementalSchedule
       State: DISABLED
-      #RoleArn: !GetAtt LaunchEmrPipelineEventRole.Arn
       Targets:
         - Arn: !GetAtt LaunchEmrPipelineLambda.Arn
           Id: !Ref LaunchEmrPipelineLambda
@@ -372,7 +351,6 @@ Resources:
             Resource: !GetAtt LaunchEmrPipelineLambda.Arn
       Roles:
         - !Ref EmrStepFunctionRole
-        #- !Ref LaunchEmrPipelineEventRole
 
   LaunchEmrPipelineLambdaArnParameter:
     Type: AWS::SSM::Parameter

@@ -115,10 +115,17 @@
                              "Properties": {
                                  "LOG_LEVEL.$": "$.log_level",
                                  "BRONZE_LAKE_S3URI": "${BronzeLakeS3Uri}",
-                                 "SILVER_LAKE_S3URI": "${SilverLakeS3Uri}"
+                                 "SILVER_LAKE_S3URI": "${SilverLakeS3Uri}",
+                                 "GOLD_LAKE_S3URI": "${GoldLakeS3Uri}"
                              }
                            }
                         ]
+                    },
+                    {
+                        "Classification": "spark",
+                        "Properties": {
+                            "maximizeResourceAllocation.$": "$.pipeline.emr_config.maximize_resource_allocation"
+                        }
                     }
                 ]
             },
@@ -128,11 +135,11 @@
         "ParallelLoadSteps": {
             "Type": "Map",
             "InputPath": "$",
-            "ItemsPath": "$.lambda.tables",
+            "ItemsPath": "$.lambda.steps",
             "Next": "SuccessOrFailChoice",
             "ResultPath": "$.steps",
             "Parameters": {
-                "table_config.$": "$$.Map.Item.Value",
+                "step_config.$": "$$.Map.Item.Value",
                 "cluster_id.$": "$.cluster.ClusterId"
             },
             "Catch" : [
@@ -155,10 +162,10 @@
                             "Step": {
                                 "ActionOnFailure": "CONTINUE",
                                 "HadoopJarStep": {
-                                    "Args.$": "$.table_config.jar_step_args",
+                                    "Args.$": "$.step_config.jar_step_args",
                                     "Jar": "command-runner.jar"
                                 },
-                                "Name.$": "$.table_config.table_name"
+                                "Name.$": "$.step_config.step_name"
                             }
                         },
                         "Retry": [

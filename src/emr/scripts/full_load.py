@@ -29,7 +29,7 @@ def main():
     logging.debug(json.dumps(config_dict, indent=4))
 
     database_config = config_dict['DatabaseConfig']
-    table_config = config_dict['TableConfigs'][table_name]
+    table_config = config_dict['StepConfigs'][table_name]
     secret_id = database_config['secret']
     spark_jdbc_config = table_config['spark_jdbc_config'] if 'spark_jdbc_config' in table_config else None
 

@@ -254,7 +254,8 @@ If you would like to apply incremental updates continuously, pipeline::config::i
   "enabled": true
 }
 ```
- - This launches a long-running EMR cluster that will use Hudi DeltaStreamer with --continuous flag 
+ - This launches a long-running EMR cluster that will use Hudi DeltaStreamer with --continuous flag
+   - *NOTE*: This requires careful tuning of the EMR cluster, each table will sync as a separate EMR job steps in parallel
  
 ## Out of scope
 
