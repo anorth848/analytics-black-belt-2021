@@ -3,7 +3,6 @@ import logging
 import os
 import boto3
 from pyspark.sql import SparkSession
-from awswrangler import catalog
 
 
 boto3.setup_default_session(region_name=os.environ.get('REGION', 'us-east-1'))
@@ -32,17 +31,16 @@ def main():
     database_config = config_dict['DatabaseConfig']
     db_name = database_config['target_db_name']
     print(database_config)
-    step = config_dict['StepConfigs']['denormalize_order_line']
 
     spark = SparkSession \
         .builder \
         .appName(f'{db_name}_denormalize') \
         .getOrCreate()
 
-
     #  Check to see if the target denormalized table exists, if it does, grab the max hudi instant time from the previous load
     try:
-        catalog.table(database='rdbms_analytics', table='analytics_order_line')
+        client = boto3.client('glue')
+        client.get_table(DatabaseName=db_name, Name='analytics_order_line')
         spark.read.format('org.apache.hudi').load(os.path.join(target_location_uri, 'analytics_order_line', ''))\
             .createOrReplaceTempView('aol')
         max_ol_instant_time = spark.sql('''

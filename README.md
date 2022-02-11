@@ -25,13 +25,13 @@ Technology choices include:
 
 Data collection leverages:
 - Amazon EMR
-- Stepfunctions
-- AWS DMS for continuous updates
+- Step Functions
+- AWS DMS (CDC)
 - AWS LakeFormation
 
-The initial full load of data is done by an Amazon EMR workflow orchestrated using Stepfunctions.   
-For continuous updates, an AWS DMS CDC-only replication task is kicked off before the full load begins.   
-Using Amazon EMR for the full load allows us to easily customize how we access the source system, allowing for ultra scalability.
+The data ingestion and processing is done by an Amazon EMR (Full load) and AWS DMS(CDC).    
+Using Amazon EMR for the full load allows for ultra scalability and customization.    
+The initial use case is Spark over JDBC but the ingestion pipeline could easily add unstructured data sources. 
 
 #### Data Storage
 
@@ -51,16 +51,25 @@ Amazon S3 is the data storage layer. For management, Amazon EMR is configured to
 For DR procedures, please see the [DR Plan](docs/DR.md)
 
 #### Data Processing   
-For Data Processing:
+##### Highlights
 - Amazon EMR is leveraged and tested to process data at scale
   - DynamoDB Config integration allows full performance tuning of EMR clusters and spark job steps
-    - Future state, would create an API/UI for updating DynamoDB table configs. For now, there is a [helper script](helpers/import_config_data.py).
+    - Future state, would create an API/UI for updating pipeline configs in DynamoDB. For now, there is a [helper script](helpers/import_config_data.py).
   - Successful testing of a ~200 million row order-line table took less than 30 minutes (8x r5.2xlarge worker nodes)
+  - The system is built off several pipeline types, `system` and `custom`. 
+    - The `system` pipelines offer a consistent way to ingest and load tables into the Bronze and Silver zones (as Hudi Tables)
+    - `Custom` pipelines allow running any sort of use-case specific code, such as denormalizing or pre-aggregating tables
+
+##### System Pipelines
 - Lightweight transformations are applied to make the datasets Hudi and CDC merge compatible
 - Larger tables are partitioned for more efficient access
 - For Hudi table updates, the pipeline can run in Incremental (scheduled hourly) or Continuous (persistent EMR cluster) depending on requirements.
 - Analytical job code and libraries are deployed and stored in an artifact CICD s3 bucket
   - TODO: CI/CD automated build/deploy on github commit/merge
+
+##### Custom pipelines
+- Can be anything Amazon EMR based, just bring your own script and configure the pipeline in DynamoDB.
+- Can be configured to run automatically after a previous pipeline
 
 #### Data Analysis and Visualization
 For Consumption:
@@ -79,7 +88,7 @@ For security:
 - Amazon EMR and DMS instance volumes are KMS encrypted at rest
 - LakeFormation is used as an additional security layer and is used by Amazon EMR and Athena/Quicksight 
 
-#### Pipeline Diagram    
+#### System Pipeline Diagram    
 
 ![](images/emr-pipeline.png)
 
@@ -126,7 +135,7 @@ The following prerequisites and information are needed before deploying this sol
 
 ### Cloudformation Deployment Parameters
 
-After gathering deployment prerequisites, decide the following Cloudformation parameters
+After gathering deployment prerequisites/requirements, decide the following Cloudformation parameters
 
 |Parameter|Default?|Description|
 |---------|-------|-----------|
@@ -217,10 +226,10 @@ These tasks vary based on the environment, source database, etc.
   ParameterKey=ReplicationInstanceClass,ParameterValue=dms.c4.xlarge
   ```
   - `UseCase` should match what was previously chosen
-  - `ParentStack` should match the stack name created previously
+  - `ParentStack` should match the base stack name created previously with `sam deploy`
   - `ReplicationInstanceClass` should be sized according to the use case
 
-#### Enabled the system and create the data lake
+#### Enable the system and load the data lake
 
 - Enabled the full load
   - `make STACK_NAME=hudi-lake REGION=us-east-1 enable_full`
@@ -255,7 +264,7 @@ If you would like to apply incremental updates continuously, pipeline::config::i
 }
 ```
  - This launches a long-running EMR cluster that will use Hudi DeltaStreamer with --continuous flag
-   - *NOTE*: This requires careful tuning of the EMR cluster, each table will sync as a separate EMR job steps in parallel
+   - *NOTE*: This requires careful tuning of the EMR cluster, each table will sync as a separate EMR job step in parallel
  
 ## Out of scope
 
