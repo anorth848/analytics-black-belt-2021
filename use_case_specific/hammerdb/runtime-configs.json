@@ -81,7 +81,7 @@
             "step_parallelism": 4
         },
         "next_pipeline": {
-            "pipeline_type": "continuous_hudi",
+            "pipeline_type": "denormalize",
             "enabled": false
         }
     },
@@ -95,7 +95,7 @@
                 "instance_type": "m5.xlarge"
             },
             "worker": {
-                "count": "1",
+                "count": "8",
                 "instance_type": "r5.xlarge"
             },
             "step_parallelism": 1,
@@ -106,7 +106,14 @@
         "config": "step::denormalize::denormalize_order_line",
         "identifier": "rdbms_analytics",
         "enabled": true,
-        "entrypoint": [ "/mnt/var/lib/instance-controller/public/scripts/denormalize.py" ]
+        "entrypoint": [
+            "/mnt/var/lib/instance-controller/public/scripts/denormalize.py"
+        ],
+        "spark_conf": {
+            "spark.executor.heartbeatInterval": "30s",
+            "spark.network.timeout": "600s",
+            "spark.dynamicAllocation.enabled": "false"
+        }
     },
     {
         "config": "step::system::public.customer",

@@ -214,8 +214,8 @@ def generate_custom_steps(configs):
         config = configs['StepConfigs'][step]
         logger.debug(json.dumps(config, indent=4))
         if 'enabled' in config and config['enabled'] is True:
-            if 'spark_conf' in config and 'full_load' in config['spark_conf']:
-                for k, v in config['spark_conf']['full_load'].items():
+            if 'spark_conf' in config:
+                for k, v in config['spark_conf'].items():
                     spark_submit_args.extend(['--conf', f'{k}={v}'])
 
             script_args = config['entrypoint']

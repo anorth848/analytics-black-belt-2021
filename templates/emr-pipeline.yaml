@@ -194,6 +194,7 @@ Resources:
         SilverLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/silver/prefix_uri', '}}' ] ]
         BronzeLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/bronze/prefix_uri', '}}' ] ]
         GoldLakeS3Uri: !Join [ '', [ '{{resolve:ssm:/', !Ref ParentStack, '/lake/bucket/gold/prefix_uri', '}}' ] ]
+        Region: !Ref AWS::Region
       Role: !GetAtt EmrStepFunctionRole.Arn
       Type: STANDARD
 
