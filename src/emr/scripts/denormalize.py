@@ -35,6 +35,10 @@ def main():
     spark = SparkSession \
         .builder \
         .appName(f'{db_name}_denormalize') \
+        .config('spark.sql.warehouse.dir', os.path.join(target_location_uri, '')) \
+        .config('spark.hive.metastore.warehouse.dir', os.path.join(target_location_uri, '')) \
+        .config('hive.metastore.warehouse.dir', os.path.join(target_location_uri, '')) \
+        .enableHiveSupport() \
         .getOrCreate()
 
     #  Check to see if the target denormalized table exists, if it does, grab the max hudi instant time from the previous load
@@ -43,17 +47,17 @@ def main():
         client.get_table(DatabaseName=db_name, Name='analytics_order_line')
         spark.read.format('org.apache.hudi').load(os.path.join(target_location_uri, 'analytics_order_line', ''))\
             .createOrReplaceTempView('aol')
-        max_ol_instant_time = spark.sql('''
-            SELECT date_format(MAX(ol_instant_time), 'yyyyMMddHHmmss') as max_ol_instant_time FROM aol
-            ''').collect()
-        print(max_ol_instant_time)
+        instant_time = spark.sql('''
+            SELECT date_format(MAX(ol_instant_time), 'yyyyMMddHHmmss') as instant_time FROM aol
+            ''').collect()[0][0]
+        logging.info(f'Table exists and records current as of {instant_time}')
         dn_table_exists = True
 
     #  There is no good way to catch botocore.errorfactory exceptions, so this...
     except Exception as e:
         if type(e).__name__ == 'EntityNotFoundException':
             dn_table_exists = False
-            max_ol_instant_time = None
+            instant_time = None
             logging.warning('Table analytics_order_line does not exist')
         else:
             raise
@@ -66,7 +70,7 @@ def main():
         if dn_table_exists is True and table == 'hammerdb_public_order_line':
             hudi_options = {
                 'hoodie.datasource.query.type': 'incremental',
-                'hoodie.datasource.read.begin.instanttime': max_ol_instant_time
+                'hoodie.datasource.read.begin.instanttime': instant_time
             }
         else:
             hudi_options = {
@@ -78,11 +82,15 @@ def main():
     # Create the denormalized dataframe
     df = spark.sql('''
         SELECT
-            concat(cast(w_id as string), cast(d_id as string), cast(o_id as string)) as aol_sk,
+            concat(cast(c_id as string), '-', cast(w_id as string), '-', cast(d_id as string), '-', cast(o_id as string)) as aol_sk,
+            concat(cast(c_id as string), '-', cast(w_id as string), '-', cast(d_id as string), '-') as c_sk,
+            c_id,
+            w_id,
+            d_id,
+            o_id, 
             ol_number,
             o_entry_d,
             date_format(o_entry_d, 'yyyy/MM/dd') as order_date,
-            c_id, 
             i_id,
             c_first || ' ' || c_middle || ' ' || c_last as full_name,
             c_zip,
@@ -121,6 +129,10 @@ def main():
         ORDER BY aol_sk, ol_number, ol_instant_time
     ''')
 
+    # If we are doing a full load because the table doesn't exist, persist it.. we'll need it for aggregation step as well
+    if dn_table_exists is False:
+        df.persist()
+
     hudi_conf = {
         'hoodie.table.name': 'analytics_order_line',
         'hoodie.datasource.write.recordkey.field': 'aol_sk,ol_number',
@@ -133,14 +145,32 @@ def main():
         'hoodie.datasource.hive_sync.partition_extractor_class': 'org.apache.hudi.hive.SlashEncodedDayPartitionValueExtractor'
     }
     if dn_table_exists is False:
+        hudi_conf['hoodie.datasource.write.operation'] = 'bulk_insert'
         hudi_conf['hoodie.bulkinsert.sort.mode'] = 'PARTITION_SORT'
+        hudi_conf['hoodie.bulkinsert.shuffle.parallelism'] = '32'
         writer = df.write.format('org.apache.hudi').mode('overwrite')
     else:
         hudi_conf['hoodie.datasource.write.operation'] = 'upsert'
+        hudi_conf['hoodie.upsert.shuffle.parallelism'] = '32'
         writer = df.write.format('org.apache.hudi').mode('append')
 
     writer.options(**hudi_conf)\
         .save(os.path.join(target_location_uri, 'analytics_order_line', ''))
+
+    # Now aggregation step
+    if dn_table_exists is True:
+        df = spark.read.format('org.apache.hudi') \
+            .load(os.path.join(target_location_uri, 'analytics_order_line', ''))
+
+    df.createOrReplaceTempView('analytics_order_line')
+
+    spark.sql('''
+        SELECT 
+            c_sk, sum(quantity) total_quantity, count(o_id) as num_orders, sum(amount) total_spent,
+            c_balance balance, c_ytd_payment, avg(item_price) avg_item_price
+        FROM analytics_order_line
+        GROUP BY c_sk, c_balance, c_ytd_payment ORDER BY 4 DESC
+    ''').write.format('parquet').saveAsTable('rdbms_analytics.analytics_customer_spend')
 
 
 if __name__ == '__main__':

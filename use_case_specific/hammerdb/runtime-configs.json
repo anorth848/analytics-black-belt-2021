@@ -82,7 +82,7 @@
         },
         "next_pipeline": {
             "pipeline_type": "denormalize",
-            "enabled": false
+            "enabled": true
         }
     },
     {
@@ -112,7 +112,16 @@
         "spark_conf": {
             "spark.executor.heartbeatInterval": "30s",
             "spark.network.timeout": "600s",
-            "spark.dynamicAllocation.enabled": "false"
+            "spark.executor.cores": "1",
+            "spark.task.cpus": "1",
+            "spark.rdd.compress": "true",
+            "spark.executor.memory": "6g",
+            "spark.executor.instances": "32",
+            "spark.dynamicAllocation.enabled": "false",
+            "spark.dynamicAllocation.minExecutors": "4",
+            "spark.dynamicAllocation.maxExecutors": "32",
+            "spark.kryoserializer.buffer.max":  "512m"
+
         }
     },
     {

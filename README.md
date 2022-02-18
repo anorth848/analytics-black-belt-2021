@@ -254,7 +254,8 @@ Incremental updates leverage [Hudi's DeltaStreamer in either Run Once or Continu
 ##### Run Once Mode (scheduled incrementals)
 If your requirements allow a scheduled incremental update, enable the incremental schedule
 - This will apply incremental changes to your hudi tables based on the schedule you defined in stack parameter `IncrementalSchedule`
-- `make STACK_NAME=hudi-lake REGION=us-east-1 enable_incremental`
+- `make STACK_NAME=hudi-lake REGION=us-east-1 enable_incremental`   
+
 ##### Continuous mode (long-running EMR cluster)
 If you would like to apply incremental updates continuously, pipeline::config::incremental_hudi.next_pipeline should be cofigured
 ```

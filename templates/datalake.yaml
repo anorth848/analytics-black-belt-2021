@@ -147,6 +147,7 @@ Resources:
                 Resource:
                   - !GetAtt BronzeLakeBucket.Arn
                   - !GetAtt SilverLakeBucket.Arn
+                  - !GetAtt GoldLakeBucket.Arn
               - Sid: S3ObjectAccess
                 Effect: Allow
                 Action:
@@ -158,6 +159,8 @@ Resources:
                   - !Join ["/", [ !GetAtt SilverLakeBucket.Arn, !Ref GlueDatabase ] ]
                   - !Join [ "/", [ !GetAtt BronzeLakeBucket.Arn, !Ref GlueDatabase, '*' ] ]
                   - !Join [ "/", [ !GetAtt BronzeLakeBucket.Arn, !Ref GlueDatabase ] ]
+                  - !Join [ "/", [ !GetAtt GoldLakeBucket.Arn, !Ref GlueDatabase, '*' ] ]
+                  - !Join [ "/", [ !GetAtt GoldLakeBucket.Arn, !Ref GlueDatabase ] ]
 
   BronzeLakeLocationResource:
     Type: AWS::LakeFormation::Resource

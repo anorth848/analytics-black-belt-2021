@@ -153,7 +153,7 @@ def generate_system_steps(configs, pipeline_type):
                     'jar_step_args': spark_submit_args
                 }
 
-            elif pipeline_type in ['seed_hudi', 'continuous_hudi', 'incremental_hudi']:
+            elif pipeline_type.endswith('_hudi'):
                 target_db_name = configs['DatabaseConfig']['target_db_name']
                 source_table_name = '_'.join(
                     [configs['DatabaseConfig']['target_table_prefix'], table.replace('.', '_')])
@@ -331,6 +331,7 @@ def handler(event, context=None):
         message = f'Launch EMR Pipeline failed: {inst}'
         send_sns(subject, message)
         raise
+
 
 if __name__ == '__main__':
     test_event={
